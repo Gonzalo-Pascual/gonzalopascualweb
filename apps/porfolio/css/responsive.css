@@ -1,0 +1,240 @@
+/* RESPONSIVE */
+
+@media (max-width: 1400px) {
+    .header {
+        padding: 2rem 3%;
+    }
+
+    .home {
+        padding: 0 3%;
+    }
+
+    .skills {
+        padding: 9rem 3% 0 3%;
+    }
+
+    .contacto {
+        padding: 9rem 3% 0 3%;
+    }
+
+    .centrado .contacto-contenido {
+        justify-content: space-between;
+
+    }
+
+    .proyecto {
+        padding: 9rem 3% 0 3%;
+
+    }
+
+    .education {
+        padding: 9rem 3% 0 3%;
+    }
+
+}
+
+@media (max-width: 1250px) {
+    .home {
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+    }
+
+    .home-content h1 {
+        margin-top: 90px;
+    }
+
+    .home-content {
+        padding: 20px;
+        margin: 10px auto;
+    }
+
+    .elguapo,
+    .texto,
+    .mas {
+        margin: 0 auto 20px auto;
+    }
+
+    .contenedorcartas {
+        justify-content: center;
+    }
+
+    .titulo h1 {
+        padding: 2rem 0 0rem 0;
+    }
+
+    .herramientas {
+        margin-top: 3rem;
+    }
+
+}
+
+
+@media (max-width: 1000px) {
+
+    .logo {
+        width: 35px;
+        height: 35px;
+    }
+
+    .header {
+        background-color: var(--fondo-oscuro);
+        padding: 1.2rem 3%;
+    }
+
+    #menu-icon {
+        display: block;
+    }
+
+    .navbar {
+        position: absolute;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        overflow: hidden;
+        top: 100%;
+        left: -100%;
+        width: 100%;
+        padding: 1rem 4%;
+        background-color: var(--fondo-mas-oscuro);
+        box-shadow: 0 .5rem 1rem rgba(0, 0, 0, .2);
+        transition: .25s ease;
+    }
+
+
+    .navbar.active {
+        transition-delay: 0s;
+        left: 0;
+
+    }
+
+    .navbar a {
+        overflow: hidden;
+        display: block;
+        font-size: 2.8rem;
+        margin: 3rem 0;
+    }
+
+    .navbar .solluna {
+        display: block;
+        font-size: 3.6rem;
+        margin: 3rem 0;
+    }
+
+    .navbar .idioma {
+        display: block;
+        font-size: 2.8rem;
+       margin: 0rem 0 2rem 1rem;
+    }
+
+
+
+}
+
+@media (max-width: 904px) {
+
+    .education {
+        margin-bottom: 5rem;
+    }
+
+    .centrado .contacto-contenido {
+        align-items: center;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+
+    }
+
+
+}
+
+@media(max-width: 744px) {
+    .herramientas {
+        margin-top: 0rem;
+        margin-bottom: 4rem;
+    }
+
+    .cartas {
+        margin-top: 4rem;
+    }
+
+    .tamañocarta {
+        height: 80px;
+        line-height: 56px; 
+    }
+}
+
+@media (max-width: 600px) {
+
+    html {
+        font-size: 45%;
+        overflow-x: hidden;
+    }
+
+    .home {
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 0 1%;
+        overflow: hidden;
+    }
+
+    .home-content h1 {
+        margin-top: 0px;
+    }
+
+    .tamañocarta {
+        height: 58px;
+        line-height: 40px;
+    }
+
+    .elguapo h3 {
+        margin-left: 2rem;
+        font-weight: 700;
+        font-size: 3.7rem;
+    }
+
+    .imgyo {
+        width: 130px;
+    }
+
+    .textocuadro {
+        display: none;
+        position: absolute;
+        text-align: start;
+        margin: 0;
+        min-height: 70px;
+        min-width: 220px; 
+        top: -90%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background-color: rgba(0, 0, 0, 0.8); 
+        color: white;
+        padding: 0.5rem 1rem;
+        border-radius: 5px;
+        font-size: 2rem;
+        z-index: 1; 
+    }
+
+}
+
+@media (max-width:410px) {
+
+    html {
+        font-size: 40%;
+    }
+
+    .imgyo {
+        width: 100px;
+    }
+
+    .tamañocarta {
+        height: 52px;
+        line-height: 34px;
+    }
+}

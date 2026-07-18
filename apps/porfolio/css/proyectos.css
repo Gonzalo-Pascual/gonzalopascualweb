@@ -1,0 +1,73 @@
+/* FORMACIÓN */
+.proyecto{
+    position: relative; /* Asegura que los elementos absolutos se posicionen relativos a esta sección */
+    z-index: 0;}
+
+.tituloformacion {
+    text-align: center;
+    margin: 10rem 0 5rem 0;
+}
+
+.tituloformacion h1 {
+    font-size: 5rem;
+    padding: 2rem 0 0rem 0;
+}
+
+.proyecto {
+    display: flex;
+    align-items: center;
+    flex-direction: column;
+    padding-bottom: 5rem;
+}
+
+.proyecto .proyecto-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5rem;
+}
+
+.proyecto-row .proyecto-column {
+    flex: 1 1 40rem;
+}
+
+.proyecto-column .title {
+    font-size: 3rem;
+    margin: 0 0 1.5rem;
+    text-align: center;
+    font-weight: 500;
+}
+
+.content .link {
+    text-decoration: none;
+    color: var(--blanco);
+}
+
+
+.proyecto-column .line {
+    padding-bottom: .1rem;
+}
+
+.proyecto-box .proyecto-content {
+    position: relative;
+    padding-left: 2rem;
+}
+
+.proyecto-content .content{
+    display: flex;
+    justify-content: space-around;
+}
+
+
+.content img{
+    width: 100%;
+    padding: 1rem;
+    transition: 0.4s ease-in-out;
+    border-radius: 30px;
+}
+
+.proyecto-content .content:hover {
+    transform: scale(1.04);
+    transition: 0.4s ease-in-out;
+}
+
+

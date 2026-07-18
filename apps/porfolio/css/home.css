@@ -1,0 +1,162 @@
+section {
+    min-height: 100vh;
+    padding: 10rem 9% 2rem;
+    z-index: 1;
+    overflow: hidden;
+}
+
+h1 {
+    text-shadow: 2px 2px 3px rgba(0, 0, 0, .3);
+    font-weight: 500;
+}
+
+.home {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 9%;
+    overflow: hidden;
+}
+
+.home-content {
+    max-width: 60rem;
+}
+
+.home-content h1 {
+    font-size: 6.5rem;
+    font-weight: 500;
+    line-height: 1.3;
+    margin-bottom: 3px;
+}
+
+
+#loquesoy {
+    animation: cambioDeColor 4s forwards infinite alternate-reverse;
+  }
+
+  @keyframes cambioDeColor {
+    0% {
+      color: var(--blanco);
+    }
+    100% {
+      color: var(--contraste);
+    }
+  }
+
+
+.botones {
+    position: relative;
+    display: flex;
+    justify-content: space-between;
+    width: 41rem;
+    height: 6rem;
+}
+
+.botones .btn {
+    position: relative;
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
+    margin-top: 45px;
+    margin-left: 1px;
+    width: 19rem;
+    height: 100%;
+    background-color: var(--contraste);
+    border: .2rem solid var(--contraste);
+    border-radius: 1.5rem;
+    font-size: 2.2rem;
+    font-weight: 700;
+    color: var(--fondo-oscuro);
+    z-index: 1;
+    overflow: hidden;
+    transition: .5s;
+}
+
+.botones .btn:hover {
+    color: var(--contraste);
+}
+
+.botones .btn:nth-child(2) {
+    background: transparent;
+    color: var(--contraste);
+}
+
+.botones .btn:nth-child(2):hover {
+    color: var(--fondo-oscuro);
+}
+
+.botones .btn:nth-child(2)::before {
+    background: var(--contraste);
+
+}
+
+.botones .btn::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 0%;
+    height: 100%;
+    background: var(--fondo-oscuro);
+    z-index: -1;
+    transition: .5s;
+}
+
+.botones .btn:hover::before {
+    width: 100%;
+}
+
+.social {
+    margin-top: 85px;
+
+    position: relative;
+    display: inline-flex;
+}
+
+.social i {
+    text-decoration: none;
+    font-size: 4.5rem;
+    margin-right: 45px;
+    color: var(--blanco);
+
+}
+
+.social i:hover {
+    color: var(--contraste);
+    transition: .3s;
+}
+
+.elguapo {
+    display: flex;
+    justify-content: flex-start;
+    align-items: center;
+}
+
+.elguapo h3 {
+    margin-left: 6rem;
+    font-weight: 500;
+    font-size: 4.1rem;
+}
+
+.home-content p {
+    margin-top: 4rem;
+    font-weight: 300;
+    font-size: 2.3rem;
+    line-height: 1.5;
+}
+
+.mas {
+    display: flex;
+    justify-content: flex-start;
+    margin-top: 40px;
+    align-items: center;
+}
+
+.mas a,
+.mas i {
+    text-decoration: none;
+    color: var(--contraste);
+    font-size: 2.2rem;
+    font-weight: 600;
+    margin-right: 5px;
+}

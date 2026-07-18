@@ -1,0 +1,110 @@
+/* SKILLS */
+
+.skills {
+    z-index: -1;
+    display: flex;
+    align-items: center;
+    flex-direction: column;
+}
+
+.centrado {
+    width: 100%;
+    align-items: center;
+
+}
+
+.titulo {
+    text-align: center;
+    margin: 3rem 0 5rem 0;
+}
+
+.titulo h1 {
+    font-size: 5rem;
+    padding: 2rem 0 5rem 0;
+}
+
+.contenedorcartas {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.contenedorcartas .cartas {
+    display: block;
+    align-items: center;
+    text-align: center;
+    width: 40rem;
+    height: 36rem;
+    position: relative;
+}
+
+.contenedorcartas .cartas h3,
+.misdatos .nombre {
+    margin-top: 1rem;
+    margin-bottom: 2rem;
+    font-size: 3.2rem;
+    font-weight: 400;
+}
+
+.contenedorcartas .cartas i {
+    margin-top: 1rem;
+    font-size: 10rem;
+}
+
+.cartas .articulos {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.tamañocarta {
+    height: 80px;
+    line-height: 56px; 
+}
+
+.articulos h4 {
+    padding: 1rem 2rem;
+    margin: .5rem;
+    font-size: 2.3rem;
+    border: 2px solid var(--contraste);
+    border-radius: 10px;
+    text-align: center;
+    font-weight: 450;
+    position: relative; 
+}
+
+.articulos h4:hover {
+    background-color: var(--contraste);
+    color: var(--fondo-oscuro);
+}
+
+
+.cuadro {
+    position: relative;
+    display: inline-block;
+    color: var(--blanco);
+}
+
+.cuadro:hover .textocuadro ,.cuadro:hover .textocuadro2 {
+    display: block; 
+}
+
+.textocuadro {
+    display: none;
+    position: absolute;
+    text-align: start;
+    margin: 0;
+    min-height: 100px;
+    min-width: 220px; 
+    top: -90%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background-color: rgba(0, 0, 0, 0.8); 
+    color: white;
+    padding: 0.5rem 1rem;
+    border-radius: 5px;
+    font-size: 1.8rem;
+    z-index: 1; 
+}
+
