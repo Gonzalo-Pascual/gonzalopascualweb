@@ -1,0 +1,20 @@
+# ==========================================================================
+#  .gitattributes — normaliza cómo git trata los ficheros.
+#  Objetivo principal: forzar finales de línea LF (estilo Unix) en TODO el
+#  repositorio. Windows usa CRLF y Linux usa LF; sin esto, un contenedor
+#  Linux puede fallar al leer un script guardado en Windows.
+# ==========================================================================
+
+# Para cualquier fichero de texto: git decide si es texto y, si lo es,
+# lo guarda con LF en el repositorio (independientemente de tu Windows).
+* text=auto eol=lf
+
+# Los binarios NO se tocan (convertir sus "saltos de línea" los corrompería).
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.gif  binary
+*.ico  binary
+*.woff  binary
+*.woff2 binary
+*.pdf  binary

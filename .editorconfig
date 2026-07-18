@@ -1,0 +1,19 @@
+# ==========================================================================
+#  .editorconfig — reglas de formato que respeta casi cualquier editor
+#  (VS Code, JetBrains, etc.). Garantiza que el código se vea igual sin
+#  importar quién lo edite ni en qué sistema. Complementa a .gitattributes.
+# ==========================================================================
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 2
+
+# En Markdown, dos espacios al final significan "salto de línea",
+# así que ahí no recortamos los espacios finales.
+[*.md]
+trim_trailing_whitespace = false

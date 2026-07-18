@@ -1,0 +1,38 @@
+# ==========================================================================
+#  .gitignore — qué NO debe entrar NUNCA en el control de versiones.
+#  Regla de oro de seguridad: si algo es un secreto o se puede regenerar,
+#  no va a git. Un secreto filtrado en git queda en el historial para siempre.
+# ==========================================================================
+
+# --- Secretos y variables de entorno (lo más crítico) -----------------------
+.env
+.env.*
+!.env.example          # el ejemplo SÍ se sube: documenta qué variables hacen falta, sin valores
+*.pem
+*.key
+secrets/
+
+# --- Estado de Terraform (contiene datos sensibles en texto plano) -----------
+**/.terraform/*
+*.tfstate
+*.tfstate.*
+crash.log
+*.tfvars               # pueden llevar credenciales
+!*.tfvars.example
+
+# --- Dependencias y artefactos de build (se regeneran, no se versionan) ------
+node_modules/
+dist/
+build/
+__pycache__/
+*.pyc
+
+# --- Ruido del sistema operativo y editores ----------------------------------
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json   # excepción: recomendaciones de extensiones sí ayudan al equipo
+
+# --- Logs --------------------------------------------------------------------
+*.log
