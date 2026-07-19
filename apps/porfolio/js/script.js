@@ -49,13 +49,13 @@ toggle.addEventListener('change', (event) => {
     menuIcon.classList.remove('bx-x');
     if (checked) {
         label_toggle.innerHTML = "<i class='bx bx-moon' ></i>";
-        logo_color.innerHTML = '<img class="logo" src="imagenes/gverdesinfondo.png" alt="logo">';
-        imgyo.innerHTML = '<img class="imgyo" src="imagenes/fotoverde.png" alt="guapo">';
+        logo_color.innerHTML = '<img class="logo" src="imagenes/gverdesinfondo.png" alt="Logo de Gonzalo Pascual">';
+        imgyo.innerHTML = '<img class="imgyo" src="imagenes/fotoverde.png" alt="Foto de Gonzalo Pascual">';
 
     } else {
         label_toggle.innerHTML = "<i class='bx bx-sun' ></i>"
-        logo_color.innerHTML = '<img class="logo" src="imagenes/gblancosinfondo.png" alt="logo">';
-        imgyo.innerHTML = '<img class="imgyo" src="imagenes/foto.png" alt="guapo">';
+        logo_color.innerHTML = '<img class="logo" src="imagenes/gblancosinfondo.png" alt="Logo de Gonzalo Pascual">';
+        imgyo.innerHTML = '<img class="imgyo" src="imagenes/foto.png" alt="Foto de Gonzalo Pascual">';
     }
 
 });
@@ -69,6 +69,7 @@ toggle_idioma.addEventListener('change', (event) => {
     menuIcon.classList.remove('bx-x');
     navbar.classList.remove('active');
     if (checked_idioma) {
+        document.documentElement.lang = 'en';
         //NavBar
         casa.innerHTML = 'About me';
         proyectos.innerHTML = 'Proyects';
@@ -112,12 +113,12 @@ toggle_idioma.addEventListener('change', (event) => {
         proyectos1.innerHTML = "Proyects"
         ciberseguridad1.innerHTML = "Cybersecurity"
         programacion1.innerHTML = "Programming"
-        hackingetico.innerHTML = '<img src="imagenes/hackingeticoingles.png" alt="">'
-        atenea.innerHTML = '<img src="imagenes/ateneaingles.png" alt="">'
-        phishing.innerHTML = '<img src="imagenes/phishingingles.png" alt="">'
-        guitarra.innerHTML = '<img src="imagenes/guitarraingles.png" alt="">'
-        odoo.innerHTML = '<img src="imagenes/odooingles.png" alt="">'
-        bbdd.innerHTML = '<img src="imagenes/bbddingles.png" alt="">'
+        hackingetico.innerHTML = '<img src="imagenes/hackingeticoingles.png" alt="Ethical Hacking and Pentesting project" loading="lazy">'
+        atenea.innerHTML = '<img src="imagenes/ateneaingles.png" alt="Ethical Hacking practices on Atenea" loading="lazy">'
+        phishing.innerHTML = '<img src="imagenes/phishingingles.png" alt="Phishing incident analysis" loading="lazy">'
+        guitarra.innerHTML = '<img src="imagenes/guitarraingles.png" alt="Guitar store (final project)" loading="lazy">'
+        odoo.innerHTML = '<img src="imagenes/odooingles.png" alt="Odoo ERP replica" loading="lazy">'
+        bbdd.innerHTML = '<img src="imagenes/bbddingles.png" alt="Hospital database" loading="lazy">'
 
         //Formación
         formacion1.innerHTML = "Experience"
@@ -143,12 +144,13 @@ toggle_idioma.addEventListener('change', (event) => {
         misdatos.innerHTML = 'My info';
         locationtext.innerHTML = 'Madrid, Spain';
         contactarme1.innerHTML = 'Contact me';
-        formulario.innerHTML = '<input type="text" name="name" id="nomretexto" class="inputdatos" placeholder="Name"><input type="email" name="email" class="inputdatos" placeholder="Email"><textarea name="message" placeholder="Message" class="textdatos" cols="30" rows="10"></textarea>'
+        formulario.innerHTML = '<input type="text" name="name" id="nomretexto" class="inputdatos" placeholder="Name" aria-label="Name"><input type="email" name="email" class="inputdatos" placeholder="Email" aria-label="Email"><textarea name="message" placeholder="Message" class="textdatos" cols="30" rows="10" aria-label="Message"></textarea>'
         send.innerHTML = 'Send';
         gracias.innerHTML = 'Thank you for visiting my website!';
 
 
     } else {
+        document.documentElement.lang = 'es';
         //NavBar
         casa.innerHTML = 'Sobre mi';
         proyectos.innerHTML = 'Proyectos';
@@ -159,7 +161,7 @@ toggle_idioma.addEventListener('change', (event) => {
         curriculum.innerHTML = 'Ver CV';
 
         //Home
-        trabajo.innerHTML = 'Programación</br>Ciberseguridad';
+        trabajo.innerHTML = 'Programación<br>Ciberseguridad';
         textosobremi.innerHTML = "¡Hola! Soy Gonzalo, una persona con gran interés por el aprendizaje y el desarrollo continuo. Me mantengo en constante formación en nuevas tecnologías y herramientas para perfeccionar mis habilidades, así como actualizado sobre amenazas y tendencias relevantes en el sector.";
 
         //Skills
@@ -193,12 +195,12 @@ toggle_idioma.addEventListener('change', (event) => {
         proyectos1.innerHTML = "Proyectos"
         ciberseguridad1.innerHTML = "Ciberseguridad"
         programacion1.innerHTML = "Programación"
-        hackingetico.innerHTML = '<img src="imagenes/hackingetico.png" alt="">'
-        atenea.innerHTML = '<img src="imagenes/atenea.png" alt="">'
-        phishing.innerHTML = '<img src="imagenes/phishing.png" alt="">'
-        guitarra.innerHTML = '<img src="imagenes/guitarra.png" alt="">'
-        odoo.innerHTML = '<img src="imagenes/odoo.png" alt="">'
-        bbdd.innerHTML = '<img src="imagenes/bbdd.png" alt="">'
+        hackingetico.innerHTML = '<img src="imagenes/hackingetico.png" alt="Proyecto de Hacking Ético y Pentesting" loading="lazy">'
+        atenea.innerHTML = '<img src="imagenes/atenea.png" alt="Prácticas de Hacking Ético en Atenea" loading="lazy">'
+        phishing.innerHTML = '<img src="imagenes/phishing.png" alt="Análisis de incidente de phishing" loading="lazy">'
+        guitarra.innerHTML = '<img src="imagenes/guitarra.png" alt="Tienda de guitarras (TFG)" loading="lazy">'
+        odoo.innerHTML = '<img src="imagenes/odoo.png" alt="Réplica del ERP Odoo" loading="lazy">'
+        bbdd.innerHTML = '<img src="imagenes/bbdd.png" alt="Base de datos de un hospital" loading="lazy">'
 
         //Formación
         formacion1.innerHTML = "Experiencia"
@@ -221,89 +223,14 @@ toggle_idioma.addEventListener('change', (event) => {
         misdatos.innerHTML = 'Mis datos';
         locationtext.innerHTML = 'Madrid, España';
         contactarme1.innerHTML = 'Contactarme';
-        formulario.innerHTML = '<input type="text" name="name" id="nomretexto" class="inputdatos" placeholder="Nombre"><input type="email" name="email" class="inputdatos" placeholder="Correo electronico"><textarea name="message" placeholder="Mensaje" class="textdatos" cols="30" rows="10"></textarea>'
+        formulario.innerHTML = '<input type="text" name="name" id="nomretexto" class="inputdatos" placeholder="Nombre" aria-label="Nombre"><input type="email" name="email" class="inputdatos" placeholder="Correo electronico" aria-label="Correo electrónico"><textarea name="message" placeholder="Mensaje" class="textdatos" cols="30" rows="10" aria-label="Mensaje"></textarea>'
         send.innerHTML = 'Enviar';
         gracias.innerHTML = '¡Gracias por visitar mi sitio Web!';
 
 
     }
 
-
-
-    /*     if (checked_idioma) {
-            casa.innerHTML = 'About me';
-            formation.innerHTML = 'Education';
-            formation1.innerHTML = 'Education';
-            formation2.innerHTML = 'Education';
-            contact.innerHTML = 'Contact';
-            contact1.innerHTML = 'Contact';
-            idioma_toggle.innerHTML = "ES<i class='bx bx-chevron-down'></i>"
-            curriculum.innerHTML = 'Download CV';
-            contactarme.innerHTML = 'Contact me';
-            contactarme1.innerHTML = 'Contact me';
-            loquesoy.innerHTML = 'Software</br>Developer';
-            textosobremi.innerHTML = "I am a young person with many interests, eager to learn and showcase my knowledge. I am constantly learning new technologies and tools to improve my skills.";
-            conocermas.innerHTML = 'Know more';
-            herramientastexto.innerHTML = 'Tools';
-            redes.innerHTML = 'Networks';
-            anio1.innerHTML = '2023-Present';
-            curso1.innerHTML = 'Cybersecurity course';
-            texto1.innerHTML = "Majoring in cybersecurity and studying how to prevent, detect and solve threats and problems.";
-            curso2.innerHTML = "Degree in DAM";
-            texto2.innerHTML = "Learning to create applications from backend to frontend, improving the user experience.";
-            curso3.innerHTML = "Robotic course";
-            texto3.innerHTML = "Developing programming knowledge, demonstrating my ability to work in a team and organize projects.";
-            proyectos.innerHTML = 'Proyects';
-            proyect1.innerHTML = "<i class='bx bxl-github'></i> Guitar store";
-            proyecttext1.innerHTML = "E-commerce project using HTML, CSS, JS, PHP and SQL presented as TFG of the DAM course";
-            proyect2.innerHTML = "<i class='bx bxl-github'></i> Odoo replica";
-            proyecttext2.innerHTML = "Proyect of an application closely resembling the ERP Odoo and some of its modules developed in VBA.";
-            proyect3.innerHTML = "<i class='bx bxl-github'></i> Hospital database";
-            proyecttext3.innerHTML = "Application to manage the database of a hospital developed in Intelliji with Java, Hibernate and SQL.";
-            misdatos.innerHTML = 'My info';
-            locationtext.innerHTML = 'Madrid, Spain';
-            formulario.innerHTML = '<input type="text" name="name" id="nomretexto" class="inputdatos" placeholder="Name"><input type="email" name="email" class="inputdatos" placeholder="Email"><textarea name="message" placeholder="Message" class="textdatos" cols="30" rows="10"></textarea>'
-            send.innerHTML = 'Send';
-            gracias.innerHTML = 'Thank you for visiting my website!';
-    
-    
-        } else {
-            casa.innerHTML = 'Sobre mi';
-            formation.innerHTML = 'Formación';
-            formation1.innerHTML = 'Formación';
-            formation2.innerHTML = 'Formación';
-            contact.innerHTML = 'Contacto';
-            contact1.innerHTML = 'Contacto';
-            idioma_toggle.innerHTML = "EN<i class='bx bx-chevron-down'></i>"
-            curriculum.innerHTML = 'Descargar CV';
-            contactarme.innerHTML = 'Contactarme';
-            contactarme1.innerHTML = 'Contactarme';
-            loquesoy.innerHTML = 'Desarrollador</br>de software';
-            textosobremi.innerHTML = "Soy un joven con muchas inquietudes, con ganas de aprender y mostrar mis conocimientos. Estoy constantemente aprendiendo nuevas tecnologías y herramientas para mejorar mis habilidades.";
-            conocermas.innerHTML = 'Conocer más';
-            herramientastexto.innerHTML = 'Herramientas';
-            redes.innerHTML = 'Redes';
-            anio1.innerHTML = '2023-Actualidad';
-            curso1.innerHTML = 'Curso en ciberseguridad';
-            texto1.innerHTML = "Especializandome en ciberseguridad y estudiando a prevenir, detectar y solucionar amenazas y problemas.";
-            curso2.innerHTML = "Grado en DAM";
-            texto2.innerHTML = "Aprendiendo a crear aplicaciones desde backend hasta frontend mejorando la experiencia de usuario.";
-            curso3.innerHTML = "Curso de Robótica";
-            texto3.innerHTML = "Desarrollando conocimientos de programación, demostrando mi capacidad de trabajar en equipo y organizar proyectos.";
-            proyectos.innerHTML = 'Proyectos';
-            proyect1.innerHTML = "<i class='bx bxl-github'></i> Tienda de Guitarras";
-            proyecttext1.innerHTML = "Proyecto de e-commerce utilizando HTML, CSS, JS, PHP y SQL presentado como TFG del curso de DAM";
-            proyect2.innerHTML = "<i class='bx bxl-github'></i> Replica Odoo";
-            proyecttext2.innerHTML = "Trabajo sobre una aplicación lo mas parecida al ERP Odoo y alguno de sus modulos desarrollado en VBA.";
-            proyect3.innerHTML = "<i class='bx bxl-github'></i> BBDD Hospital";
-            proyecttext3.innerHTML = "Aplicación para gestionar la BBDD de un hospital desarrollada en Intelliji con Java, Hibernate y SQL.";
-            misdatos.innerHTML = 'Mis datos';
-            locationtext.innerHTML = 'Madrid, España';
-            formulario.innerHTML = '<input type="text" name="name" id="nomretexto" class="inputdatos" placeholder="Nombre"><input type="email" name="email" class="inputdatos" placeholder="Correo electronico"><textarea name="message" placeholder="Mensaje" class="textdatos" cols="30" rows="10"></textarea>'
-            send.innerHTML = 'Enviar';
-            gracias.innerHTML = '¡Gracias por visitar mi sitio Web!';
-        } */
-
 });
 
 
+document.getElementById('anio').textContent = new Date().getFullYear();
