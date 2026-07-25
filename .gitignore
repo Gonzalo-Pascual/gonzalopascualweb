@@ -17,7 +17,7 @@ secrets/
 *.tfstate
 *.tfstate.*
 crash.log
-*.tfvars               # pueden llevar credenciales
+*.tfvars              
 !*.tfvars.example
 
 # --- Dependencias y artefactos de build (se regeneran, no se versionan) ------
