@@ -43,5 +43,12 @@ venv/
 *.db
 *.sqlite3
 
+# --- Kubernetes --------------------------------------------------------------
+# El kubeconfig lleva el certificado de cliente de administrador del clúster:
+# quien lo tenga es root en Kubernetes. Nunca a git.
+kubeconfig
+kubeconfig*.yaml
+*.kubeconfig
+
 # --- Carpeta de info --------------------------------------------------------------------
 docs/

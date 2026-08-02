@@ -1,0 +1,25 @@
+# Qué NO se envía al demonio de Docker como contexto de construcción.
+#
+# Dos motivos:
+#  1. Seguridad: todo lo que entra en el contexto puede acabar en una capa de
+#     la imagen por un COPY descuidado. Si un secreto entra en una capa, sigue
+#     ahí aunque un RUN posterior lo borre.
+#  2. Velocidad: el contexto se comprime y se transfiere entero en cada build.
+
+# Ficheros de construcción: no tienen por qué viajar dentro de la imagen
+Dockerfile
+.dockerignore
+
+# Control de versiones y metadatos
+.git
+.gitignore
+
+# Secretos (defensa en profundidad: aquí no debería haber ninguno)
+.env
+.env.*
+*.pem
+*.key
+
+# Ruido del sistema operativo
+.DS_Store
+Thumbs.db
