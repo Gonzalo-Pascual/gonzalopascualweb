@@ -21,7 +21,7 @@ crash.log
 !*.tfvars.example
 # Los ficheros de plan guardados llevan dentro los valores de las variables,
 # secretos incluidos, y además en texto legible con "terraform show".
-tfplan
+tfplan*
 *.tfplan
 
 # --- Dependencias y artefactos de build (se regeneran, no se versionan) ------
