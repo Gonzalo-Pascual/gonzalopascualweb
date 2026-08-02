@@ -3,17 +3,6 @@ resource "hcloud_ssh_key" "default" {
   public_key = file(pathexpand(var.ssh_public_key_path))
 }
 
-resource "hcloud_firewall" "web" {
-  name = "fw-portfolio"
-
-  rule {
-    direction  = "in"
-    protocol   = "tcp"
-    port       = "22"
-    source_ips = [var.allowed_ssh_cidr]
-  }
-}
-
 resource "hcloud_server" "web" {
   name         = "vm-portfolio"
   server_type  = var.server_type

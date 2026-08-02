@@ -1,0 +1,19 @@
+# Copia este fichero a terraform.tfvars y rellena el token.
+#   cp terraform.tfvars.example terraform.tfvars
+#
+# terraform.tfvars está en .gitignore. Este .example sí se versiona.
+
+# Token de API de Cloudflare, creado en:
+#   https://dash.cloudflare.com/profile/api-tokens > Create Custom Token
+#
+# Permisos mínimos necesarios (nunca la Global API Key):
+#   Zone : Zone           : Read
+#   Zone : DNS            : Edit
+#   Zone : Zone Settings  : Edit
+# Ámbito: Include > Specific zone > gonzalopascual.es
+# Sin filtro de IP de cliente: cert-manager usará este mismo token desde la VM.
+cloudflare_api_token = "PON_AQUI_TU_TOKEN_DE_CLOUDFLARE"
+
+# Modo SSL de la zona. Se deja en "full" hasta que cert-manager emita el
+# certificado real (paso 4); entonces se cambia a "strict".
+# cloudflare_ssl_mode = "full"

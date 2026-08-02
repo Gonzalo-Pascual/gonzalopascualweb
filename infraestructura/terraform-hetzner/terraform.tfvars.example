@@ -1,0 +1,14 @@
+# Copia este fichero a terraform.tfvars y rellena los valores.
+#   cp terraform.tfvars.example terraform.tfvars
+#
+# terraform.tfvars está en .gitignore y NUNCA debe subirse: contiene secretos.
+# Este .example sí se versiona, para documentar qué variables hacen falta.
+
+# Token de la API de Hetzner Cloud, con permiso de lectura y escritura.
+# Se crea en: Hetzner Cloud Console > proyecto > Security > API tokens
+hcloud_token = "PON_AQUI_TU_TOKEN_DE_HETZNER"
+
+# Tu IP pública, con máscara /32 (una sola dirección).
+# Averíguala con:  curl -4 -s https://api.ipify.org
+# Es el único origen que podrá abrir SSH contra el servidor.
+allowed_ssh_cidr = "88.12.34.56/32"
