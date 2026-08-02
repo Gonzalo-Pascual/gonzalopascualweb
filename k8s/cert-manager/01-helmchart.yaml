@@ -1,0 +1,34 @@
+---
+# Instalación de cert-manager usando el controlador Helm que k3s trae de serie.
+#
+# Por qué así y no con "helm install":
+#   · Es declarativo. El manifiesto vive en git y describe el estado deseado;
+#     no hay un comando imperativo que alguien tuvo que acordarse de ejecutar.
+#   · No hace falta instalar Helm en ningún sitio: el controlador vive dentro
+#     del clúster.
+#   · La versión queda FIJADA. Nada de "latest": una actualización silenciosa
+#     de un componente que gestiona certificados es justo lo que no quieres.
+#
+# cert-manager es quien va a pedir, validar y RENOVAR automáticamente los
+# certificados de Let's Encrypt (que caducan cada 90 días). Sin él habría que
+# renovarlos a mano cuatro veces al año, que es como se caen las webs.
+apiVersion: helm.cattle.io/v1
+kind: HelmChart
+metadata:
+  name: cert-manager
+  namespace: kube-system
+spec:
+  repo: https://charts.jetstack.io
+  chart: cert-manager
+  version: v1.21.1
+  targetNamespace: cert-manager
+  valuesContent: |-
+    crds:
+      # Instala los CustomResourceDefinitions (Certificate, Issuer,
+      # ClusterIssuer, Order, Challenge). Son los tipos nuevos que cert-manager
+      # añade a la API de Kubernetes.
+      enabled: true
+      # No borrar los CRDs si se desinstala el chart: al eliminar un CRD,
+      # Kubernetes borra en cascada TODOS los objetos de ese tipo. Perderías
+      # los certificados emitidos por un "helm uninstall" accidental.
+      keep: true

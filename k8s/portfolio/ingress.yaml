@@ -1,0 +1,60 @@
+---
+# ============================================================================
+#  Ingress del portfolio
+#
+#  Traefik ya estaba desplegado (viene con k3s) y escuchando en 80/443, pero
+#  sin ninguna regla: por eso respondía 404 a todo. Este objeto es esa regla.
+#
+#  La anotación cert-manager.io/cluster-issuer activa el "ingress-shim": al
+#  detectarla, cert-manager crea automáticamente un objeto Certificate para los
+#  nombres de la sección tls, ejecuta el reto DNS-01 contra Cloudflare y deja
+#  el certificado en el Secret indicado. También se encarga de renovarlo cuando
+#  le queden 30 días de vida. Todo sin intervención.
+# ============================================================================
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: portfolio
+  annotations:
+    # Validado antes contra letsencrypt-staging: el circuito DNS-01 completo
+    # funcionaba, así que ya se puede gastar cuota del emisor real.
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+
+    # Middleware que redirige www al apex. El formato de la referencia es
+    # <namespace>-<nombre>@kubernetescrd; es una peculiaridad de Traefik, que
+    # traduce los objetos de Kubernetes a su propio espacio de nombres interno.
+    # Se aplica a todo el Ingress, pero su expresión solo casa con el nombre
+    # www, así que las peticiones al apex no se ven afectadas.
+    traefik.ingress.kubernetes.io/router.middlewares: default-redirect-www@kubernetescrd
+spec:
+  ingressClassName: traefik
+
+  tls:
+    - hosts:
+        - gonzalopascual.es
+        - www.gonzalopascual.es
+      # cert-manager CREA este Secret. No hay que crearlo a mano.
+      secretName: portfolio-tls
+
+  rules:
+    - host: gonzalopascual.es
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: portfolio
+                port:
+                  number: 80
+
+    - host: www.gonzalopascual.es
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: portfolio
+                port:
+                  number: 80

@@ -1,0 +1,23 @@
+---
+# Redirección 301 de www.gonzalopascual.es al apex gonzalopascual.es.
+#
+# Motivo: servir el mismo contenido en dos URLs distintas es contenido duplicado
+# para los buscadores y reparte la autoridad del dominio entre las dos. Se elige
+# una canónica (el apex) y la otra redirige.
+#
+# Se resuelve con un Middleware de Traefik en lugar de con una Redirect Rule de
+# Cloudflare para que la regla viva en el repositorio junto al resto del
+# despliegue, y no en un panel web donde nadie la revisa.
+#
+# La expresión solo dispara para el nombre con www, así que se puede aplicar al
+# Ingress completo sin afectar a las peticiones al apex.
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: redirect-www
+  namespace: default
+spec:
+  redirectRegex:
+    regex: "^https?://www\\.gonzalopascual\\.es/(.*)"
+    replacement: "https://gonzalopascual.es/${1}"
+    permanent: true

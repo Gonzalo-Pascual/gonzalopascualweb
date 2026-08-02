@@ -1,0 +1,62 @@
+---
+# ============================================================================
+#  Emisores de certificados (ACME / Let's Encrypt)
+#
+#  Un ClusterIssuer describe CÓMO se piden certificados. Hay dos a propósito:
+#
+#   · letsencrypt-staging → entorno de pruebas de Let's Encrypt. Emite
+#     certificados que los navegadores NO reconocen, pero prácticamente sin
+#     límites de uso. Es donde se depura.
+#
+#   · letsencrypt-prod → el de verdad. Tiene límites estrictos: 5 fallos de
+#     validación por cuenta y hora, y 50 certificados por dominio y semana.
+#     Si depuras contra producción y te equivocas cinco veces, quedas
+#     bloqueado una hora. Por eso SIEMPRE se prueba antes en staging.
+#
+#  Ambos usan el reto DNS-01 en lugar de HTTP-01. Diferencia:
+#
+#   · HTTP-01 obliga a que Let's Encrypt alcance tu servidor por el puerto 80
+#     desde cualquier IP. Nuestro firewall solo admite tráfico de Cloudflare,
+#     así que HTTP-01 fallaría.
+#   · DNS-01 demuestra el control del dominio creando un registro TXT temporal
+#     (_acme-challenge.gonzalopascual.es). No requiere NINGÚN puerto abierto:
+#     el servidor solo hace conexiones salientes hacia la API de Cloudflare.
+#     Más seguro, y además es el único método que permite comodines (*.dominio).
+# ============================================================================
+
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-staging
+spec:
+  acme:
+    server: https://acme-staging-v02.api.letsencrypt.org/directory
+    email: gonzalo.pascualromero@gmail.com
+    privateKeySecretRef:
+      # Aquí cert-manager guarda la clave privada de la CUENTA ACME (no la del
+      # certificado). Se crea sola la primera vez.
+      name: letsencrypt-staging-account-key
+    solvers:
+      - dns01:
+          cloudflare:
+            apiTokenSecretRef:
+              name: cloudflare-api-token
+              key: api-token
+
+---
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-prod
+spec:
+  acme:
+    server: https://acme-v02.api.letsencrypt.org/directory
+    email: gonzalo.pascualromero@gmail.com
+    privateKeySecretRef:
+      name: letsencrypt-prod-account-key
+    solvers:
+      - dns01:
+          cloudflare:
+            apiTokenSecretRef:
+              name: cloudflare-api-token
+              key: api-token

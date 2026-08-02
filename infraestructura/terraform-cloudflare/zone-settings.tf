@@ -50,10 +50,47 @@ resource "cloudflare_zone_setting" "automatic_https_rewrites" {
   value      = "on"
 }
 
-# PENDIENTE (paso 4): HSTS (setting_id = "security_header").
+# HSTS (HTTP Strict Transport Security).
 #
-# HSTS le ordena al navegador "para este dominio, no vuelvas a intentar HTTP
-# nunca más durante N segundos". Es muy eficaz y a la vez difícil de revertir:
-# hasta que expire el max_age, los navegadores que ya lo recibieron se negarán
-# a conectar por HTTP aunque tú desactives el ajuste. Por eso se activa DESPUÉS
-# de comprobar que el HTTPS funciona de forma estable, y nunca antes.
+# Le ordena al navegador: "para este dominio, durante los próximos max_age
+# segundos, no intentes HTTP ni una sola vez; usa HTTPS directamente".
+#
+# Qué ataque evita, que no evita ya el redirect 301 de always_use_https: el
+# redirect llega DEMASIADO TARDE. La primera petición del visitante que teclea
+# "gonzalopascual.es" viaja en claro, y un atacante en la misma red (wifi de
+# cafetería, por ejemplo) puede interceptarla y quedarse en medio antes de que
+# el redirect ocurra. Es el ataque de "SSL stripping". Con HSTS, el navegador
+# ni siquiera manda esa primera petición insegura.
+#
+# Es potente y difícil de revertir: hasta que expire el max_age, los
+# navegadores que ya recibieron la cabecera se negarán a conectar por HTTP
+# aunque desactives el ajuste. Por eso se activa DESPUÉS de comprobar que el
+# HTTPS funciona de forma estable, nunca antes.
+resource "cloudflare_zone_setting" "hsts" {
+  zone_id    = var.zone_id
+  setting_id = "security_header"
+
+  value = {
+    strict_transport_security = {
+      enabled = true
+
+      # Un año, el valor recomendado por OWASP para un dominio ya estable.
+      max_age = 31536000
+
+      # DESACTIVADO a propósito. Aplicaría HSTS también a todos los subdominios
+      # (autodiscover, _dmarc...), que hoy son CNAMEs hacia IONOS y no controlo.
+      # Si alguno sirviese algo por HTTP, quedaría inaccesible durante un año
+      # sin poder revertirlo. Se activará cuando todos los subdominios sean míos.
+      include_subdomains = false
+
+      # DESACTIVADO a propósito. La lista de precarga va compilada DENTRO de los
+      # navegadores: salir de ella tarda meses en llegar a los usuarios. Es un
+      # billete casi de ida.
+      preload = false
+
+      # X-Content-Type-Options: nosniff. nginx ya la envía; esto la garantiza
+      # también en el borde por si el origen cambiase de configuración.
+      nosniff = true
+    }
+  }
+}

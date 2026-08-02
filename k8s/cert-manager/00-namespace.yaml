@@ -1,0 +1,22 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: cert-manager
+  labels:
+    # Pod Security Standards (nativo de Kubernetes desde 1.25). Define qué
+    # puede hacer un pod en este espacio de nombres:
+    #
+    #   enforce: baseline  → RECHAZA pods que hagan cosas peligrosas de verdad
+    #                        (privileged, hostNetwork, hostPath, capacidades
+    #                        de kernel arbitrarias).
+    #   audit/warn: restricted → registra y avisa de todo lo que no cumple el
+    #                        perfil más estricto, sin llegar a bloquearlo.
+    #
+    # Se usa "baseline" para forzar y "restricted" solo para avisar a
+    # propósito: forzar "restricted" en un componente de terceros puede impedir
+    # que arranque tras una actualización del chart. Primero se mide, luego se
+    # aprieta. Los avisos dirán si cert-manager ya cumpliría "restricted".
+    pod-security.kubernetes.io/enforce: baseline
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/warn: restricted
