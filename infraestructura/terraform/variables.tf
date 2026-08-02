@@ -36,11 +36,11 @@ variable "ssh_public_key_path" {
 variable "instance_ocpus" {
   type        = number
   description = "OCPUs (hasta 4 en ARM A1)."
-  default     = 2
+  default     = 1
 }
 
 variable "instance_memory_gbs" {
   type        = number
   description = "Memoria en GB (hasta 24 en ARM A1)."
-  default     = 12
+  default     = 6
 }

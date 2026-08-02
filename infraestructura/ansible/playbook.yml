@@ -1,0 +1,65 @@
+---
+- name: Configurar y asegurar la VM del portfolio
+  hosts: web
+  become: true
+
+  tasks:
+    - name: Esperar a que la VM acepte conexiones SSH
+      ansible.builtin.wait_for_connection:
+        timeout: 120
+
+    - name: Actualizar paquetes e instalar actualizaciones
+      ansible.builtin.apt:
+        update_cache: true
+        upgrade: dist
+        cache_valid_time: 3600
+
+    - name: Instalar paquetes de seguridad
+      ansible.builtin.apt:
+        name:
+          - fail2ban
+          - unattended-upgrades
+        state: present
+
+    - name: Aplicar configuración de SSH endurecida
+      ansible.builtin.copy:
+        dest: /etc/ssh/sshd_config.d/99-hardening.conf
+        owner: root
+        group: root
+        mode: "0644"
+        content: |
+          PermitRootLogin prohibit-password
+          PasswordAuthentication no
+          PubkeyAuthentication yes
+          KbdInteractiveAuthentication no
+          X11Forwarding no
+      notify: Reiniciar SSH
+
+    - name: Activar las actualizaciones automáticas de seguridad
+      ansible.builtin.copy:
+        dest: /etc/apt/apt.conf.d/20auto-upgrades
+        owner: root
+        group: root
+        mode: "0644"
+        content: |
+          APT::Periodic::Update-Package-Lists "1";
+          APT::Periodic::Unattended-Upgrade "1";
+
+    - name: Activar y arrancar fail2ban
+      ansible.builtin.service:
+        name: fail2ban
+        enabled: true
+        state: started
+
+    - name: Instalar k3s (Kubernetes ligero, servidor de un nodo)
+      ansible.builtin.shell: curl -sfL https://get.k3s.io | sh -
+      args:
+        creates: /usr/local/bin/k3s
+      environment:
+        INSTALL_K3S_EXEC: "--write-kubeconfig-mode 644"
+
+  handlers:
+    - name: Reiniciar SSH
+      ansible.builtin.service:
+        name: ssh
+        state: restarted
