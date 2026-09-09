@@ -22,7 +22,27 @@ spec:
           type: RuntimeDefault
       containers:
         - name: nginx
-          image: ghcr.io/gonzalo-pascual/portfolio:v1
+          # Fijada por DIGEST, no por etiqueta.
+          #
+          # Una etiqueta como ":v1" es un puntero móvil: nada impide que el
+          # contenido detrás de ella cambie sin que este fichero se entere, y
+          # el clúster desplegaría algo distinto mientras git sigue diciendo
+          # que todo está igual. El digest ES el hash del contenido: si alguien
+          # alterase un solo byte de la imagen, el hash no coincidiría y el
+          # contenedor se negaría a arrancar.
+          #
+          # Este digest lo produjo el pipeline .github/workflows/ci-portfolio.yml
+          # a partir del commit 45346f7, tras pasar el análisis de Trivy, y está
+          # firmado con cosign. Verificable con:
+          #
+          #   cosign verify ghcr.io/gonzalo-pascual/portfolio@sha256:3f9b3bf1... \
+          #     --certificate-identity-regexp 'https://github.com/Gonzalo-Pascual/gonzalopascualweb/.github/workflows/.*' \
+          #     --certificate-oidc-issuer https://token.actions.githubusercontent.com
+          image: ghcr.io/gonzalo-pascual/portfolio@sha256:3f9b3bf12f2a1f3d3991b7af3051ce9bad6c4d55a0665a50d159d05353583e40
+          # Con un digest, "si no está, tráela" es seguro: el identificador
+          # determina el contenido de forma unívoca, así que la copia en caché
+          # nunca puede ser una imagen distinta.
+          imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8080
           securityContext:
