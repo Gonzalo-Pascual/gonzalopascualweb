@@ -1,0 +1,105 @@
+# ============================================================================
+#  Análisis de seguridad del repositorio: secretos e infraestructura como código.
+#
+#  Separado del flujo del portfolio a propósito: este analiza TODO el
+#  repositorio y debe ejecutarse aunque no se toque la web (por ejemplo al
+#  cambiar el Terraform), además de periódicamente, porque las reglas de
+#  detección y las bases de datos de vulnerabilidades se actualizan solas.
+# ============================================================================
+name: Seguridad · Secretos e IaC
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  # Semanal: un análisis que solo corre cuando tocas código nunca detecta una
+  # vulnerabilidad publicada DESPUÉS de tu último commit. Y esas son la mayoría.
+  schedule:
+    - cron: '0 6 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  # --------------------------------------------------------------------------
+  #  Búsqueda de secretos filtrados
+  # --------------------------------------------------------------------------
+  secretos:
+    name: Secretos en el historial
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      # fetch-depth: 0 descarga TODO el historial, no solo el último commit.
+      # Es imprescindible: lo que se busca es precisamente un secreto que se
+      # commiteó en su día y se borró después. Sigue estando en el historial,
+      # y quien haya clonado el repositorio lo conserva. Un secreto que entra
+      # en git está comprometido para siempre; la única respuesta correcta es
+      # revocarlo y emitir uno nuevo.
+      - name: Descargar el código con el historial completo
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          fetch-depth: 0
+
+      # gitleaks es gratuito para cuentas personales y repositorios públicos.
+      # (Las cuentas de organización requieren una licencia en GITLEAKS_LICENSE.)
+      - name: Buscar credenciales con gitleaks
+        uses: gitleaks/gitleaks-action@ff98106e4c7b2bc287b24eaf42907196329070c7 # v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # --------------------------------------------------------------------------
+  #  Análisis de la infraestructura como código
+  # --------------------------------------------------------------------------
+  infraestructura:
+    name: Terraform y manifiestos de Kubernetes
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - name: Descargar el código
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+
+      # Trivy en modo "config" no busca vulnerabilidades de paquetes, sino
+      # CONFIGURACIONES INSEGURAS: un puerto abierto de más en Terraform, un
+      # contenedor sin límites de memoria, un permiso excesivo. Es el "shift
+      # left" de verdad: encontrar el fallo de seguridad en el fichero de texto
+      # y no en producción seis meses después.
+      #
+      # exit-code 0 = NO BLOQUEA, de momento y a propósito. Las reglas de Trivy
+      # para Kubernetes son muy opinadas y la primera ejecución va a señalar
+      # varias cosas legítimas. Primero se mide, se revisa lo que dice y se
+      # arregla lo que tenga sentido; después se pone en bloqueante. Es el mismo
+      # criterio que se aplicó a los Pod Security Standards (baseline forzado,
+      # restricted solo avisando) y a DMARC: medir antes de exigir.
+      - name: Analizar configuraciones (informe)
+        uses: aquasecurity/trivy-action@d2a0b60797ff03db6132bd4e2b293f9b37081297 # master
+        with:
+          scan-type: config
+          scan-ref: .
+          severity: MEDIUM,HIGH,CRITICAL
+          exit-code: '0'
+          format: sarif
+          output: trivy-config.sarif
+
+      - name: Publicar hallazgos de configuración
+        if: always()
+        uses: github/codeql-action/upload-sarif@f3712979fa5f215279b101dd0a2e3bdfb4353324 # v3
+        with:
+          sarif_file: trivy-config.sarif
+          category: trivy-config
+        continue-on-error: true
+
+      # Además del informe SARIF, se imprime en el log para poder leerlo de un
+      # vistazo sin entrar en la pestaña Security.
+      - name: Mostrar los hallazgos en el registro
+        if: always()
+        uses: aquasecurity/trivy-action@d2a0b60797ff03db6132bd4e2b293f9b37081297 # master
+        with:
+          scan-type: config
+          scan-ref: .
+          severity: HIGH,CRITICAL
+          exit-code: '0'
+          format: table

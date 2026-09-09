@@ -1,0 +1,231 @@
+# ============================================================================
+#  CI del portfolio: construir, analizar, publicar, firmar.
+#
+#  Este flujo NO despliega nada. Deliberadamente no tiene acceso al clúster:
+#  para desplegar desde aquí habría que guardar el kubeconfig (credencial de
+#  administrador de Kubernetes) como secreto en GitHub y abrir el puerto 6443,
+#  justo lo contrario de lo que se decidió en el ADR 0006. El despliegue lo
+#  resolverá ArgoCD tirando del repositorio desde DENTRO del clúster.
+#
+#  Todas las acciones están fijadas por HASH DE COMMIT, no por etiqueta. Una
+#  etiqueta como @v4 es un puntero móvil: si alguien compromete el repositorio
+#  de la acción y la mueve, este flujo ejecutaría código ajeno con permisos
+#  sobre el repositorio. No es hipotético: en marzo de 2025 ocurrió con
+#  tj-actions/changed-files, usado por más de 20.000 proyectos, y se filtraron
+#  secretos de muchos de ellos. El comentario con la versión es para humanos.
+# ============================================================================
+name: CI · Portfolio
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'apps/porfolio/**'
+      - '.github/workflows/ci-portfolio.yml'
+  pull_request:
+    paths:
+      - 'apps/porfolio/**'
+      - '.github/workflows/ci-portfolio.yml'
+  workflow_dispatch:
+
+# Mínimo privilegio a nivel de flujo: por defecto, solo lectura del código.
+# Cada trabajo amplía únicamente los permisos que necesita.
+permissions:
+  contents: read
+
+env:
+  # GHCR exige nombres de imagen en minúsculas. Se escribe literal en lugar de
+  # derivarlo de github.repository_owner ("Gonzalo-Pascual"), que llevaría
+  # mayúsculas y haría fallar la publicación.
+  IMAGEN: ghcr.io/gonzalo-pascual/portfolio
+  CONTEXTO: apps/porfolio
+
+# Si se empujan dos commits seguidos, cancela la ejecución anterior: no tiene
+# sentido gastar tiempo construyendo una versión que ya está obsoleta.
+concurrency:
+  group: ci-portfolio-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  construir:
+    name: Construir, analizar y publicar
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read          # descargar el código
+      packages: write         # publicar la imagen en GHCR
+      id-token: write         # generar el testimonio OIDC que usa cosign
+      security-events: write  # subir informes SARIF a la pestaña Security
+
+    steps:
+      - name: Descargar el código
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+
+      # --- Análisis estático del Dockerfile ---------------------------------
+      # No bloquea (no-fail). Sus avisos son de estilo y buenas prácticas, no
+      # vulnerabilidades explotables; van a la pestaña Security para revisarlos.
+      - name: Analizar el Dockerfile (hadolint)
+        uses: hadolint/hadolint-action@54c9adbab1582c2ef04b2016b760714a4bfde3cf # v3.1.0
+        with:
+          dockerfile: apps/porfolio/Dockerfile
+          format: sarif
+          output-file: hadolint.sarif
+          no-fail: true
+
+      - name: Publicar hallazgos de hadolint
+        uses: github/codeql-action/upload-sarif@f3712979fa5f215279b101dd0a2e3bdfb4353324 # v3
+        with:
+          sarif_file: hadolint.sarif
+          category: hadolint
+        continue-on-error: true
+
+      # --- Construcción ------------------------------------------------------
+      - name: Preparar Buildx
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+
+      - name: Calcular etiquetas y metadatos
+        id: meta
+        uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5
+        with:
+          images: ${{ env.IMAGEN }}
+          # Una etiqueta legible por commit (sha-a1b2c3d) para orientarse en el
+          # registro. Deliberadamente NO se genera "latest": el manifiesto de
+          # Kubernetes apuntará al digest, que es lo único inmutable.
+          tags: |
+            type=sha,prefix=sha-,format=short
+          labels: |
+            org.opencontainers.image.title=Portfolio de Gonzalo Pascual
+            org.opencontainers.image.description=Web estatica servida con nginx sin privilegios
+
+      # Se construye SIN publicar para poder analizarla antes. El orden importa:
+      # una imagen vulnerable no debe llegar nunca al registro, porque desde ahí
+      # alguien podría desplegarla.
+      - name: Construir la imagen (todavía sin publicar)
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+        with:
+          context: ${{ env.CONTEXTO }}
+          load: true
+          push: false
+          tags: portfolio:pendiente-de-analisis
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # --- Análisis de vulnerabilidades -------------------------------------
+      # Bloqueante y muy acotado a propósito:
+      #   severity: CRITICAL   -> solo lo más grave
+      #   ignore-unfixed: true -> solo lo que TIENE parche disponible
+      # Bloquear ante cualquier hallazgo produce un pipeline permanentemente
+      # rojo que todo el mundo acaba ignorando, y un aviso que se ignora no
+      # protege de nada. Lo demás se reporta en el paso siguiente.
+      - name: Vulnerabilidades críticas (bloqueante)
+        uses: aquasecurity/trivy-action@d2a0b60797ff03db6132bd4e2b293f9b37081297 # master
+        with:
+          image-ref: portfolio:pendiente-de-analisis
+          scanners: vuln,secret
+          severity: CRITICAL
+          ignore-unfixed: true
+          exit-code: '1'
+          format: table
+
+      # Informe completo, nunca bloqueante. Va a la pestaña Security del
+      # repositorio, donde queda histórico y se puede revisar con calma.
+      - name: Informe completo de vulnerabilidades
+        if: always()
+        uses: aquasecurity/trivy-action@d2a0b60797ff03db6132bd4e2b293f9b37081297 # master
+        with:
+          image-ref: portfolio:pendiente-de-analisis
+          scanners: vuln,secret
+          severity: MEDIUM,HIGH,CRITICAL
+          exit-code: '0'
+          format: sarif
+          output: trivy-imagen.sarif
+
+      - name: Publicar informe de Trivy
+        if: always()
+        uses: github/codeql-action/upload-sarif@f3712979fa5f215279b101dd0a2e3bdfb4353324 # v3
+        with:
+          sarif_file: trivy-imagen.sarif
+          category: trivy-imagen
+        continue-on-error: true
+
+      # --- Publicación -------------------------------------------------------
+      # Todo lo que sigue se salta en los pull requests: un PR puede venir de
+      # cualquiera, y no debe poder publicar ni firmar nada. En un PR el flujo
+      # llega hasta el análisis y ahí se detiene, que es justo lo que se quiere.
+      - name: Autenticarse en GHCR
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          # Token efímero que GitHub genera para esta ejecución y caduca al
+          # terminar. No hay ninguna credencial guardada en el repositorio.
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publicar la imagen
+        id: publicar
+        if: github.event_name != 'pull_request'
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+        with:
+          context: ${{ env.CONTEXTO }}
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          # Las capas ya están construidas y en caché: esto es casi instantáneo.
+          cache-from: type=gha
+          # SBOM: inventario legible por máquinas de todo lo que va dentro.
+          # Cuando salga la próxima vulnerabilidad grave, la pregunta "¿estoy
+          # afectado?" pasa de ser una investigación de días a una búsqueda.
+          sbom: true
+          # Procedencia SLSA: registra CÓMO se construyó la imagen (repositorio,
+          # commit, flujo, parámetros). Es la trazabilidad que hoy no existe.
+          provenance: mode=max
+
+      # --- Firma criptográfica ----------------------------------------------
+      - name: Instalar cosign
+        if: github.event_name != 'pull_request'
+        uses: sigstore/cosign-installer@398d4b0eeef1380460a10c8013a76f728fb906ac # v3
+
+      # Firma SIN clave privada. GitHub emite un testimonio OIDC que acredita
+      # "esto lo lanzó este repositorio, en este commit, desde este flujo".
+      # Fulcio (autoridad pública) lo cambia por un certificado de 10 minutos,
+      # se firma con él, y la firma queda anotada en Rekor, un registro público
+      # e inmutable. El certificado caduca: no queda ninguna clave que robar.
+      - name: Firmar la imagen por digest
+        if: github.event_name != 'pull_request'
+        run: cosign sign --yes "${IMAGEN}@${DIGEST}"
+        env:
+          IMAGEN: ${{ env.IMAGEN }}
+          DIGEST: ${{ steps.publicar.outputs.digest }}
+
+      # --- Resumen legible ---------------------------------------------------
+      - name: Escribir el resumen de la ejecución
+        if: github.event_name != 'pull_request'
+        env:
+          IMAGEN: ${{ env.IMAGEN }}
+          DIGEST: ${{ steps.publicar.outputs.digest }}
+          TAGS: ${{ steps.meta.outputs.tags }}
+        run: |
+          {
+            echo "## Imagen publicada y firmada"
+            echo
+            echo '```'
+            echo "${IMAGEN}@${DIGEST}"
+            echo '```'
+            echo
+            echo "Etiqueta legible: \`${TAGS}\`"
+            echo
+            echo "### Para fijarla en el Deployment"
+            echo
+            echo '```yaml'
+            echo "          image: ${IMAGEN}@${DIGEST}"
+            echo '```'
+            echo
+            echo "### Para verificar la firma desde cualquier sitio"
+            echo
+            echo '```bash'
+            echo "cosign verify ${IMAGEN}@${DIGEST} \\"
+            echo "  --certificate-identity-regexp 'https://github.com/${GITHUB_REPOSITORY}/.github/workflows/.*' \\"
+            echo "  --certificate-oidc-issuer https://token.actions.githubusercontent.com"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
