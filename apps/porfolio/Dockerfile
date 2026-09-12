@@ -6,11 +6,24 @@
 #  80, que es privilegiado. Esta variante escucha en el 8080 y corre como UID
 #  101 desde el primer instante, lo que permite el runAsNonRoot del Deployment.
 #
-#  RAMA 1.30 = estable. nginx usa versiones menores PARES para la rama estable
-#  (solo correcciones) e IMPARES para mainline (funcionalidades nuevas). Para
-#  servir ficheros estáticos no hace falta nada nuevo: interesa lo aburrido.
+#  RAMA 1.31 = mainline. nginx usa versiones menores PARES para la rama estable
+#  (solo correcciones retroportadas) e IMPARES para mainline. Se elige mainline
+#  por dos motivos:
 #
-#  FIJADA POR DIGEST, no por etiqueta. Una etiqueta como "1.30-alpine" es un
+#   1. SEGURIDAD: mainline recibe las correcciones primero; la rama estable las
+#      recibe después, retroportadas. Elegir deliberadamente recibir los
+#      parches más tarde es difícil de justificar en este proyecto.
+#   2. MANTENIBILIDAD: quedarse en la rama estable obligaría a añadir a
+#      Dependabot una regla que ignorase los saltos de rama, y esa regla
+#      también silenciaría el aviso de la siguiente estable (1.32). Es decir,
+#      reintroduciría por la puerta de atrás el estancamiento silencioso que
+#      dejó esta imagen catorce meses sin actualizar.
+#
+#  El riesgo de mainline es bajo aquí: nginx solo sirve ficheros estáticos con
+#  directivas (listen, root, index, add_header, try_files) que no han cambiado
+#  en una década.
+#
+#  FIJADA POR DIGEST, no por etiqueta. Una etiqueta como "1.31-alpine" es un
 #  puntero móvil: el contenido detrás de ella cambia con cada parche. El digest
 #  es el hash del contenido, así que la construcción es REPRODUCIBLE: hoy y
 #  dentro de un año se obtiene exactamente la misma imagen base.
