@@ -1,0 +1,67 @@
+# ============================================================================
+#  Excepciones al análisis de Trivy
+#
+#  Una excepción razonada y escrita es buena ingeniería. Una excepción
+#  silenciosa es deuda que nadie recuerda haber contraído.
+#
+#  Por eso cada entrada de este fichero lleva OBLIGATORIAMENTE dos cosas:
+#
+#    statement   → POR QUÉ se ignora. Si no se puede escribir una razón
+#                  convincente, es que el hallazgo no debería ignorarse.
+#    expired_at  → CUÁNDO caduca la excepción. A partir de esa fecha Trivy
+#                  vuelve a reportarlo. Nada se ignora "para siempre":
+#                  las circunstancias cambian y la decisión debe revisarse.
+#
+#  NOTA: este fichero NO se detecta solo. Hay que pasarlo explícitamente con
+#  --ignorefile (o con el parámetro 'trivyignores' de la acción de GitHub).
+#  Está declarado en .github/workflows/ci-seguridad.yml.
+#
+#  Para reproducir el análisis en local con estas excepciones aplicadas:
+#
+#    trivy config . --severity HIGH,CRITICAL \
+#      --ignorefile .trivyignore.yaml --skip-dirs apps/api/.venv
+# ============================================================================
+
+misconfigurations:
+  # --------------------------------------------------------------------------
+  - id: KSV-0037
+    paths:
+      - "k8s/cert-manager/01-helmchart.yaml"
+    statement: >-
+      El objeto HelmChart debe vivir en kube-system porque es ahí donde el
+      controlador de Helm que k3s trae de serie espera encontrarlo. No es una
+      elección nuestra, es un requisito de la plataforma.
+
+      Además, el objeto en kube-system es solo una DECLARACIÓN: dice qué chart
+      instalar y con qué valores. Los pods de cert-manager se despliegan en su
+      propio namespace (targetNamespace: cert-manager), que sí tiene aplicados
+      Pod Security Standards. El riesgo que persigue esta regla —cargas de
+      trabajo de usuario corriendo con los privilegios elevados de kube-system—
+      no se materializa aquí.
+
+      Revisar si se migra la instalación de cert-manager a ArgoCD, que haría
+      innecesario el controlador de Helm de k3s y permitiría sacarlo de
+      kube-system por completo.
+    expired_at: 2027-03-31
+
+  # --------------------------------------------------------------------------
+  - id: KSV-0125
+    paths:
+      - "k8s/portfolio/deployment.yaml"
+    statement: >-
+      El registro señalado como "no confiable" es ghcr.io/gonzalo-pascual, es
+      decir, el nuestro. La regla compara contra una lista de registros de
+      confianza que Trivy trae por defecto y en la que GHCR no figura; no está
+      detectando una procedencia dudosa, sino una laguna de su configuración.
+
+      La procedencia de esta imagen está, de hecho, mejor acreditada que la de
+      la mayoría: se referencia por digest inmutable, la construyó un pipeline
+      cuyo código está en este mismo repositorio, y va firmada con cosign
+      mediante OIDC, con la firma anotada en el registro público de
+      transparencia de Sigstore.
+
+      Revisar cuando se despliegue Kyverno con una política verifyImages: en
+      ese momento la confianza en el registro dejará de ser una lista estática
+      y pasará a comprobarse criptográficamente en cada arranque de pod, que es
+      una garantía mucho más fuerte que la que pide esta regla.
+    expired_at: 2027-03-31

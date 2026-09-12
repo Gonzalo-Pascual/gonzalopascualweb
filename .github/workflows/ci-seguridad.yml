@@ -68,17 +68,36 @@ jobs:
       # left" de verdad: encontrar el fallo de seguridad en el fichero de texto
       # y no en producción seis meses después.
       #
-      # exit-code 0 = NO BLOQUEA, de momento y a propósito. Las reglas de Trivy
-      # para Kubernetes son muy opinadas y la primera ejecución va a señalar
-      # varias cosas legítimas. Primero se mide, se revisa lo que dice y se
-      # arregla lo que tenga sentido; después se pone en bloqueante. Es el mismo
-      # criterio que se aplicó a los Pod Security Standards (baseline forzado,
-      # restricted solo avisando) y a DMARC: medir antes de exigir.
+      # HISTORIA DE ESTE PASO, que es la parte instructiva:
+      #
+      # Nació sin bloquear, a propósito, porque las reglas de Trivy para
+      # Kubernetes son muy exigentes y nadie sabía qué iba a encontrar. Primero
+      # se midió. El resultado del primer análisis completo (2026-09-12) fue:
+      #
+      #   Terraform (Hetzner, Cloudflare, Oracle) .... 0 hallazgos
+      #   Manifiestos de Kubernetes .................. 2 MEDIUM
+      #   Dockerfile ................................. 1 HIGH
+      #   Críticos ................................... 0
+      #
+      # El HIGH era real y se corrigió (falta de USER explícito en el
+      # Dockerfile). Los dos MEDIUM resultaron ser falsos positivos y quedaron
+      # documentados con su razón y su fecha de caducidad en .trivyignore.yaml.
+      #
+      # Con la base limpia, el paso pasa a BLOQUEAR. Es el mismo camino que se
+      # siguió con los Pod Security Standards (baseline forzado, restricted
+      # avisando) y con DMARC: medir antes de exigir. Exigir sin haber medido
+      # produce un pipeline permanentemente rojo que todo el mundo aprende a
+      # ignorar, y un aviso que se ignora no protege de nada.
+
+      # Informe completo a la pestaña Security: incluye los MEDIUM y nunca
+      # bloquea. Queda histórico y se revisa con calma.
       - name: Analizar configuraciones (informe)
+        if: always()
         uses: aquasecurity/trivy-action@d2a0b60797ff03db6132bd4e2b293f9b37081297 # master
         with:
           scan-type: config
           scan-ref: .
+          trivyignores: .trivyignore.yaml
           severity: MEDIUM,HIGH,CRITICAL
           exit-code: '0'
           format: sarif
@@ -92,14 +111,23 @@ jobs:
           category: trivy-config
         continue-on-error: true
 
-      # Además del informe SARIF, se imprime en el log para poder leerlo de un
-      # vistazo sin entrar en la pestaña Security.
-      - name: Mostrar los hallazgos en el registro
+      # LA PUERTA. Va al final para que los informes se suban pase lo que pase.
+      #
+      # Bloquea ante HIGH y CRITICAL, no ante MEDIUM. El motivo es de
+      # estabilidad: Trivy publica reglas nuevas continuamente, y las de nivel
+      # MEDIUM suelen ser recomendaciones de estilo. Bloquear ahí convertiría
+      # cualquier actualización del catálogo de reglas en una rotura del
+      # pipeline sin que hubiera cambiado ni una línea del repositorio. Los
+      # MEDIUM siguen apareciendo en el informe de arriba.
+      #
+      # Para endurecerlo más adelante basta con añadir MEDIUM a esta lista.
+      - name: Configuraciones inseguras (BLOQUEANTE)
         if: always()
         uses: aquasecurity/trivy-action@d2a0b60797ff03db6132bd4e2b293f9b37081297 # master
         with:
           scan-type: config
           scan-ref: .
+          trivyignores: .trivyignore.yaml
           severity: HIGH,CRITICAL
-          exit-code: '0'
+          exit-code: '1'
           format: table

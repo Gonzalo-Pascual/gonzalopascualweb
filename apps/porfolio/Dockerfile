@@ -54,6 +54,24 @@ COPY imagenes/  /usr/share/nginx/html/imagenes/
 COPY vendor/    /usr/share/nginx/html/vendor/
 COPY CV_Gonzalo_Pascual_Romero_2024.pdf /usr/share/nginx/html/
 
+# Usuario sin privilegios, declarado EXPLÍCITAMENTE.
+#
+# La imagen base ya arranca como UID 101, así que esta línea no cambia el
+# comportamiento actual. Se añade por dos motivos:
+#
+#  1. Convierte una propiedad HEREDADA en una garantía propia. Si algún día
+#     alguien cambiara el FROM a la imagen oficial de nginx —que arranca como
+#     root para poder abrir el puerto 80— este Dockerfile seguiría forzando un
+#     usuario sin privilegios en lugar de degradarse en silencio.
+#  2. Hace explícita la intención: quien lea el fichero no tiene que ir a
+#     inspeccionar la imagen base para saber con qué usuario corre esto.
+#
+# Va DESPUÉS de los COPY a propósito: las instrucciones COPY las ejecuta el
+# constructor, no el usuario del contenedor, y así los ficheros quedan con el
+# propietario habitual (root) y permisos de solo lectura para el resto. Es lo
+# que nginx necesita, y encaja con el readOnlyRootFilesystem del Deployment.
+USER 101
+
 # El puerto es informativo: no publica nada por sí mismo, pero documenta en
 # qué puerto escucha el proceso. El Deployment lo declara en containerPort.
 EXPOSE 8080
