@@ -1,0 +1,110 @@
+---
+# ============================================================================
+#  Instalación de ArgoCD
+#
+#  EL PROBLEMA DEL ARRANQUE: si ArgoCD gestiona todo lo que hay en el clúster,
+#  ¿quién gestiona a ArgoCD? La respuesta aquí: su instalación está declarada en
+#  este fichero, versionada en git, y la aplica el controlador de Helm que k3s
+#  trae de serie — el mismo mecanismo que instaló cert-manager.
+#
+#  Existe un patrón en el que ArgoCD se gestiona a sí mismo ("app of apps"),
+#  pero añade una capa de indirección que no resuelve ningún problema real en un
+#  clúster de un solo nodo, y complica la recuperación si ArgoCD se rompe.
+#
+#  DIMENSIONADO: la VM tiene 2 vCPU y ~2.500 MB de RAM libres. La instalación
+#  completa de ArgoCD levanta siete componentes; aquí se desactivan los tres que
+#  no hacen falta y se acotan los recursos de los cuatro restantes.
+# ============================================================================
+apiVersion: helm.cattle.io/v1
+kind: HelmChart
+metadata:
+  name: argocd
+  namespace: kube-system
+spec:
+  repo: https://argoproj.github.io/argo-helm
+  chart: argo-cd
+  version: 10.9.0 # ArgoCD v3.5.2
+  targetNamespace: argocd
+  valuesContent: |-
+    # --- Componentes que NO se instalan --------------------------------------
+    # Cada uno que se desactiva es memoria que no se consume y superficie de
+    # ataque que no existe.
+
+    # Inicio de sesión federado (Google, GitHub, LDAP...). Hay un solo usuario.
+    dex:
+      enabled: false
+
+    # Avisos a Slack, correo o Telegram cuando una sincronización falla.
+    # Interesante más adelante; hoy no hay a dónde enviarlos.
+    notifications:
+      enabled: false
+
+    # Genera aplicaciones en masa a partir de plantillas. Hay una aplicación.
+    applicationSet:
+      enabled: false
+
+    configs:
+      params:
+        # El servidor sirve HTTP en claro en lugar de su TLS autofirmado.
+        #
+        # Parece un retroceso y no lo es: la interfaz NO está expuesta a
+        # Internet. Sólo se alcanza mediante 'kubectl port-forward' a través del
+        # túnel SSH, que ya va cifrado y autenticado por clave. Añadir un TLS
+        # autofirmado por dentro sólo aportaría un aviso del navegador que
+        # acabarías aprendiendo a ignorar, que es peor que no tenerlo.
+        #
+        # Si algún día se expone por Ingress, esto DEBE volver a false.
+        server.insecure: true
+
+    # --- Recursos ------------------------------------------------------------
+    # Criterio aplicado en los cuatro componentes:
+    #
+    #  · requests = lo que Kubernetes RESERVA. Es lo que usa para decidir si
+    #    el pod cabe en el nodo.
+    #  · limits de memoria = tope duro. Si se supera, el contenedor muere y se
+    #    reinicia. Es lo que impide que una fuga de memoria tumbe la máquina.
+    #  · limits de CPU = generosos a propósito. Un límite de CPU no mata el
+    #    proceso: lo ESTRANGULA. Si se aprieta demasiado, las sincronizaciones
+    #    se vuelven lentísimas sin ningún error visible, que es de lo más
+    #    difícil de diagnosticar. Se ponen altos: acotan un proceso desbocado
+    #    sin penalizar el funcionamiento normal.
+
+    controller:
+      resources:
+        requests:
+          cpu: 50m
+          memory: 256Mi
+        limits:
+          cpu: 500m
+          memory: 512Mi
+
+    repoServer:
+      resources:
+        requests:
+          cpu: 25m
+          memory: 128Mi
+        limits:
+          cpu: 400m
+          memory: 384Mi
+
+    server:
+      resources:
+        requests:
+          cpu: 25m
+          memory: 96Mi
+        limits:
+          cpu: 300m
+          memory: 256Mi
+      # Sin Ingress y sin LoadBalancer: el servicio es interno al clúster.
+      # No existe ninguna ruta hacia él desde fuera de la máquina.
+      service:
+        type: ClusterIP
+
+    redis:
+      resources:
+        requests:
+          cpu: 10m
+          memory: 64Mi
+        limits:
+          cpu: 200m
+          memory: 128Mi

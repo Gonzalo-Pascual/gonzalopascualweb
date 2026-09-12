@@ -1,0 +1,77 @@
+---
+# ============================================================================
+#  La aplicación: qué trozo del repositorio vigila ArgoCD y dónde lo aplica.
+#
+#  Este objeto es el ARRANQUE y se aplica una sola vez con kubectl. A partir de
+#  ahí, ArgoCD se encarga de todo lo que hay en k8s/portfolio/ y el kubectl
+#  manual deja de ser necesario.
+#
+#  Nota: ArgoCD NO se gestiona a sí mismo ni gestiona este fichero. Su ámbito es
+#  exclusivamente 'path: k8s/portfolio'. Es deliberado: si una configuración
+#  errónea rompiera ArgoCD, no quieres que el mecanismo averiado sea también el
+#  único capaz de repararse.
+# ============================================================================
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: portfolio
+  namespace: argocd
+  # SIN el finalizador 'resources-finalizer.argocd.argoproj.io', a propósito.
+  #
+  # Con él, borrar este objeto Application borraría en cascada el Deployment,
+  # el Service, el Ingress y el Middleware: la web entera caería por un
+  # 'kubectl delete application'. Sin él, borrar la Application sólo hace que
+  # ArgoCD deje de vigilar; lo que está corriendo sigue corriendo.
+  #
+  # La forma correcta de retirar el portfolio es borrar sus manifiestos del
+  # repositorio y dejar que el borrado automático (prune) haga su trabajo, que
+  # además queda registrado en git.
+
+spec:
+  project: default
+
+  # --- De dónde lee -------------------------------------------------------
+  source:
+    # Repositorio PÚBLICO: no hace falta ninguna credencial. ArgoCD sólo abre
+    # una conexión HTTPS saliente hacia github.com. Ni un puerto de entrada,
+    # ni un secreto que custodiar.
+    repoURL: https://github.com/Gonzalo-Pascual/gonzalopascualweb.git
+    targetRevision: main
+    # Sólo esta carpeta. Los manifiestos de cert-manager y los de ArgoCD quedan
+    # fuera de su alcance de momento.
+    path: k8s/portfolio
+
+  # --- Dónde lo aplica ----------------------------------------------------
+  destination:
+    # La API del propio clúster donde corre ArgoCD.
+    server: https://kubernetes.default.svc
+    namespace: default
+
+  # --- Cómo se comporta ---------------------------------------------------
+  syncPolicy:
+    automated:
+      # Borra del clúster lo que desaparezca del repositorio.
+      #
+      # CUIDADO: si borras k8s/portfolio/ingress.yaml por error, ArgoCD borrará
+      # el Ingress y la web dejará de responder. Se arregla revirtiendo el
+      # commit. El repositorio ES producción.
+      prune: true
+
+      # Revierte cualquier cambio hecho a mano en el clúster.
+      #
+      # Esto CAMBIA LA FORMA DE TRABAJAR: a partir de ahora, un 'kubectl edit'
+      # dura minutos antes de que ArgoCD lo deshaga. No es un efecto secundario
+      # molesto, es el objetivo: la única vía de cambiar producción pasa a ser
+      # un commit, y por tanto todo cambio queda registrado y es reversible.
+      selfHeal: true
+
+    retry:
+      limit: 5
+      backoff:
+        duration: 10s
+        factor: 2
+        maxDuration: 3m
+
+  # Historial de sincronizaciones que conserva, para poder volver atrás desde
+  # la interfaz.
+  revisionHistoryLimit: 10
