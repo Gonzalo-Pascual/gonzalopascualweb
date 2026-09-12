@@ -1,0 +1,149 @@
+// ============================================================================
+//  Renovate — mantenimiento automatizado de dependencias
+//
+//  SUSTITUYE a Dependabot, no lo acompaña. Tener los dos significaría recibir
+//  dos propuestas distintas para cada actualización. Renovate hace todo lo que
+//  hacía Dependabot y además cubre dos huecos que Dependabot no puede:
+//
+//   1. EL DIGEST DE LA IMAGEN en k8s/portfolio/deployment.yaml. Hasta ahora
+//      había que copiarlo a mano tras cada construcción. Era el último paso
+//      manual que quedaba en toda la cadena.
+//
+//   2. LAS VERSIONES DE LOS CHARTS de cert-manager y ArgoCD, declaradas en
+//      objetos HelmChart de k3s. Dependabot no sabe leer ese formato, así que
+//      esas dos versiones estaban fijadas sin que nadie las vigilara: el mismo
+//      estancamiento silencioso que dejó la imagen de nginx catorce meses sin
+//      actualizar.
+//
+//  Se escribe en JSON5 (no JSON) precisamente para poder dejar escrito el
+//  porqué de cada decisión.
+// ============================================================================
+{
+  $schema: "https://docs.renovatebot.com/renovate-schema.json",
+
+  extends: [
+    // Conjunto de ajustes razonables mantenido por el propio equipo de Renovate.
+    "config:recommended",
+
+    // Fija las acciones de GitHub por hash de commit y mantiene el comentario
+    // con la versión sincronizado. Es justo lo que Dependabot hizo mal con
+    // codeql-action: actualizó el hash y dejó el comentario diciendo "v3".
+    "helpers:pinGitHubActionDigests",
+  ],
+
+  timezone: "Europe/Madrid",
+
+  // Panel único en una incidencia del repositorio con TODO lo pendiente,
+  // incluso lo que no ha abierto propuesta. Responde de un vistazo a la
+  // pregunta "¿tengo algo desactualizado?", que hasta ahora no tenía respuesta.
+  dependencyDashboard: true,
+  dependencyDashboardTitle: "Panel de dependencias",
+
+  labels: ["dependencias"],
+
+  // Topes para no despertarse con veinte propuestas abiertas.
+  prConcurrentLimit: 6,
+  prHourlyLimit: 3,
+
+  // Propuestas por vulnerabilidad conocida: sin límite de horario ni de
+  // concurrencia. Un fallo de seguridad no espera al lunes.
+  vulnerabilityAlerts: {
+    labels: ["seguridad", "dependencias"],
+    schedule: ["at any time"],
+  },
+  osvVulnerabilityAlerts: true,
+
+  // --------------------------------------------------------------------------
+  //  Gestor de manifiestos de Kubernetes
+  //
+  //  No trae patrones por defecto: los ficheros YAML de Kubernetes no siguen
+  //  ninguna convención de nombres, así que hay que decirle dónde mirar.
+  //  Detecta los campos 'image:' y actualiza tanto etiquetas como DIGESTS.
+  // --------------------------------------------------------------------------
+  kubernetes: {
+    managerFilePatterns: ["/k8s/.+\\.yaml$/"],
+  },
+
+  // --------------------------------------------------------------------------
+  //  Gestor personalizado: charts de Helm en objetos HelmChart de k3s
+  //
+  //  El formato es propio de k3s y ningún gestor estándar lo entiende:
+  //
+  //      spec:
+  //        repo: https://charts.jetstack.io      -> registryUrl
+  //        chart: cert-manager                   -> depName
+  //        version: v1.21.1                      -> currentValue
+  //
+  //  Con esos tres datos Renovate ya puede consultar el repositorio de charts
+  //  y avisar cuando salga una versión nueva.
+  // --------------------------------------------------------------------------
+  customManagers: [
+    {
+      customType: "regex",
+      description: "Versiones de charts declaradas en objetos HelmChart de k3s",
+      managerFilePatterns: ["/k8s/.+/01-helmchart\\.yaml$/"],
+      matchStrings: [
+        "repo:\\s*(?<registryUrl>\\S+)\\s+chart:\\s*(?<depName>\\S+)\\s+version:\\s*(?<currentValue>\\S+)",
+      ],
+      datasourceTemplate: "helm",
+    },
+  ],
+
+  // --------------------------------------------------------------------------
+  //  Qué se fusiona solo y qué espera revisión
+  //
+  //  El criterio: se automatiza lo que NO puede cambiar el comportamiento, y se
+  //  revisa lo que sí. Un digest nuevo de la misma versión y un parche son
+  //  correcciones; un salto de versión menor o mayor puede traer cambios.
+  //
+  //  Nada se fusiona sin pasar antes por el pipeline completo: construcción,
+  //  análisis de vulnerabilidades y análisis de configuración. El automerge
+  //  solo actúa si TODAS las comprobaciones están en verde.
+  // --------------------------------------------------------------------------
+  packageRules: [
+    {
+      description: "Digests de imagen: la pieza que cierra el ciclo CI -> despliegue",
+      matchUpdateTypes: ["digest", "pinDigest"],
+      automerge: true,
+      // Sin restricción horaria: cuando el pipeline publique una imagen nueva,
+      // la propuesta se abre y se fusiona en minutos. A partir de ahí ArgoCD
+      // la despliega solo. Es el último eslabón manual que quedaba.
+      schedule: ["at any time"],
+      commitMessagePrefix: "deploy(digest):",
+    },
+    {
+      description: "Parches: correcciones, se fusionan solas si el pipeline pasa",
+      matchUpdateTypes: ["patch"],
+      automerge: true,
+    },
+    {
+      description: "Versiones menores y mayores: las revisa un humano",
+      matchUpdateTypes: ["minor", "major"],
+      automerge: false,
+    },
+    {
+      description: "Agrupa las acciones de GitHub en una sola propuesta",
+      matchManagers: ["github-actions"],
+      groupName: "acciones de GitHub",
+      schedule: ["* 0-6 * * 1"],
+    },
+    {
+      description: "Agrupa las dependencias de Python de la mini-API",
+      matchManagers: ["pip_requirements"],
+      groupName: "dependencias de la API",
+      schedule: ["* 0-6 * * 1"],
+      // AVISO: no hay ni un test de la API, así que el pipeline NO valida
+      // estas actualizaciones. Se revisan a mano hasta que existan tests.
+      automerge: false,
+    },
+    {
+      description: "Charts de Helm: cert-manager y ArgoCD sostienen el clúster",
+      matchDatasources: ["helm"],
+      // Nunca automáticas, ni siquiera los parches: una actualización de
+      // cert-manager o de ArgoCD toca la emisión de certificados o el propio
+      // mecanismo de despliegue. Se leen las notas de la versión antes.
+      automerge: false,
+      labels: ["dependencias", "cluster"],
+    },
+  ],
+}
