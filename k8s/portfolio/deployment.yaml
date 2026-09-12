@@ -32,20 +32,20 @@ spec:
           # contenedor se negaría a arrancar.
           #
           # Este digest lo produjo el pipeline .github/workflows/ci-portfolio.yml
-          # a partir del commit 0870d3e, sobre nginx 1.31-alpine, tras pasar el
+          # a partir del commit fe6fe39, sobre nginx 1.31-alpine, tras pasar el
           # análisis de Trivy sin vulnerabilidades críticas. Está firmado con
           # cosign y lleva adjuntos su SBOM y su procedencia SLSA.
           #
           # Verificable desde cualquier máquina, sin credenciales:
           #
-          #   cosign verify ghcr.io/gonzalo-pascual/portfolio@sha256:186e4d6c... \
+          #   cosign verify ghcr.io/gonzalo-pascual/portfolio@sha256:e68bbd3f... \
           #     --certificate-identity-regexp 'https://github.com/Gonzalo-Pascual/gonzalopascualweb/.github/workflows/.*' \
           #     --certificate-oidc-issuer https://token.actions.githubusercontent.com
           #
           # Los dos parámetros de identidad no son opcionales: sin ellos sólo
           # comprobarías que ALGUIEN firmó la imagen, no que la firmara este
           # repositorio.
-          image: ghcr.io/gonzalo-pascual/portfolio@sha256:186e4d6c6403834d0038d6b1c96ed1b03ad266e27faac4fd317c78cafc4775cd
+          image: ghcr.io/gonzalo-pascual/portfolio@sha256:e68bbd3f2e17145fd217c05312eeb3a5b50e7b277ca7086ccd3248b789acdce4
           # Con un digest, "si no está, tráela" es seguro: el identificador
           # determina el contenido de forma unívoca, así que la copia en caché
           # nunca puede ser una imagen distinta.
