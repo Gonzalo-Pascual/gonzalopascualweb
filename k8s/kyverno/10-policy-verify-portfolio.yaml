@@ -86,7 +86,27 @@ spec:
         # solo que "está firmada" no vale nada: cualquiera puede firmar.
         keyless:
           identities:
-            - subject: "https://github.com/Gonzalo-Pascual/gonzalopascualweb/.github/workflows/*"
+            # ─── POR QUÉ subjectRegExp Y NO subject ───
+            #
+            # El primer intento usaba:
+            #     subject: ".../workflows/*"
+            #
+            # y la fase de auditoría lo cazó. El log de Kyverno fue explícito:
+            #
+            #     none of the expected identities matched what was in the
+            #     certificate, got subjects [https://github.com/Gonzalo-Pascual/
+            #     gonzalopascualweb/.github/workflows/ci-portfolio.yml@refs/heads/main]
+            #
+            # En cosign, 'subject' es de COINCIDENCIA EXACTA: el asterisco no es
+            # un comodín, es un carácter literal. Para patrones existe un campo
+            # distinto, 'subjectRegExp'.
+            #
+            # La expresión corregida es además MÁS ESTRICTA de lo que se
+            # pretendía, y eso es bueno: exige que la firma venga de la rama
+            # main (@refs/heads/main). Una firma producida desde otra rama, una
+            # etiqueta o un fork NO la satisface. El comodín original habría
+            # aceptado cualquier referencia.
+            - subjectRegExp: '^https://github\.com/Gonzalo-Pascual/gonzalopascualweb/\.github/workflows/[^@]+@refs/heads/main$'
               issuer: "https://token.actions.githubusercontent.com"
 
   # --- Qué se exige ----------------------------------------------------------
