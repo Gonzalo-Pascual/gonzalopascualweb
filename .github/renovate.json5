@@ -137,6 +137,15 @@
       automerge: false,
     },
     {
+      description: "El stack de Oracle está archivado: no se actualiza",
+      // Renovate encuentra el .terraform.lock.hcl de OCI y propondría
+      // actualizar sus providers. Es ruido: ese código documenta un camino
+      // abandonado y su propio README advierte de que NO debe ejecutarse.
+      // Actualizarlo sugeriría que sigue vivo.
+      matchFileNames: ["infraestructura/terraform-oracle-archivado/**"],
+      enabled: false,
+    },
+    {
       description: "Charts de Helm: cert-manager y ArgoCD sostienen el clúster",
       matchDatasources: ["helm"],
       // Nunca automáticas, ni siquiera los parches: una actualización de
