@@ -120,10 +120,15 @@ spec:
     # contenido concreto, no un puntero que alguien pueda mover.
     verifyDigest: true
 
-    # DEBE ser false mientras la acción sea Audit: mutar es un cambio, y
-    # contradice el "solo observar". Kyverno rechaza la política si no lo es.
-    # Se pondrá a true al pasar a [Deny], y entonces reescribirá a su digest
-    # cualquier imagen desplegada por etiqueta.
+    # Se mantiene en false incluso en modo Deny, a propósito. Podría ponerse a
+    # true para que Kyverno reescriba al digest correspondiente una imagen
+    # desplegada por etiqueta, pero eso convertiría la política en MUTANTE, y
+    # una política que valida es más simple de razonar que una que además
+    # cambia lo que despliegas.
+    #
+    # Y no hace falta: con verifyDigest: true, una imagen sin digest ya falla
+    # la verificación, y en modo Deny eso significa que se rechaza. Prefiero
+    # rechazar un despliegue mal hecho a corregirlo en silencio.
     mutateDigest: false
 
   # --- La comprobación en sí -------------------------------------------------
@@ -135,8 +140,28 @@ spec:
         La imagen no tiene una firma valida emitida por un flujo de
         Gonzalo-Pascual/gonzalopascualweb a traves de GitHub Actions.
 
-  # Audit = registra y no bloquea. Ver la explicación del encabezado.
-  validationActions: [Audit]
+  # ───────────────────────────────────────────────────────────────────────────
+  #  Deny = RECHAZA. El clúster se niega a crear un pod cuya imagen no venga
+  #  firmada por un flujo de este repositorio desde la rama main.
+  #
+  #  Se llegó aquí tras la fase de auditoría, que cazó un error real en la
+  #  política (ver la nota del subjectRegExp más arriba) y confirmó después un
+  #  'pass' sobre la imagen en producción. Poner Deny antes de esa comprobación
+  #  habría impedido arrancar el propio portfolio.
+  #
+  #  ⚠ CONSECUENCIA OPERATIVA: con Deny, Kyverno configura su webhook para
+  #  FALLAR ante un error de comunicación, no para ignorarlo. En un clúster de
+  #  un solo nodo, un Kyverno caído impide crear pods.
+  #
+  #  VÁLVULA DE ESCAPE si eso ocurriera — desactiva la política sin necesidad
+  #  de que ningún pod arranque, porque son objetos de la API:
+  #
+  #      kubectl delete imagevalidatingpolicy verificar-firma-imagenes-propias
+  #
+  #  Kyverno excluye kube-system de sus webhooks, así que los componentes del
+  #  sistema siguen pudiendo arrancar y el clúster se recupera solo.
+  # ───────────────────────────────────────────────────────────────────────────
+  validationActions: [Deny]
 
   evaluation:
     background:
