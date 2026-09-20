@@ -5,28 +5,41 @@
 #  QUÉ IMPIDE, en una frase: que alguien con acceso al clúster despliegue una
 #  imagen que no haya salido del pipeline de este repositorio.
 #
-#  Fíjate en el matiz, porque es lo interesante: Kyverno no comprueba si la
-#  imagen es "buena" — eso no lo sabe nadie. Comprueba su PROCEDENCIA. Y un
-#  atacante no puede falsificarla, porque necesitaría que GitHub le emitiera un
-#  testimonio OIDC en nombre de Gonzalo-Pascual/gonzalopascualweb.
+#  El matiz que la hace interesante: Kyverno no juzga si la imagen es "buena"
+#  —eso no lo sabe nadie—, sino su PROCEDENCIA. Y un atacante no puede
+#  falsificarla, porque necesitaría que GitHub le emitiera un testimonio OIDC
+#  en nombre de Gonzalo-Pascual/gonzalopascualweb.
+#
+#  ─── POR QUÉ ImageValidatingPolicy Y NO ClusterPolicy ───
+#
+#  El primer intento usaba 'kyverno.io/v1 ClusterPolicy', que es lo que sale
+#  en casi toda la documentación y los ejemplos de internet. Al validarla
+#  contra el clúster, Kyverno respondió:
+#
+#      ClusterPolicy is deprecated and will be removed in a future release;
+#      migrate to ValidatingPolicy, MutatingPolicy, GeneratingPolicy or
+#      ImageValidatingPolicy (policies.kyverno.io)
+#
+#  Kyverno 1.19 estrenó tipos de política basados en CEL, y este —específico
+#  para verificación de imágenes— es ESTABLE desde esa misma versión. Estrenar
+#  el proyecto con una API deprecada habría sido incoherente con todo lo demás.
 #
 #  ─── EMPIEZA EN MODO AUDITORÍA ───
 #
-#  failureAction: Audit registra las violaciones pero NO bloquea. Es
-#  deliberado y es el mismo camino que se siguió con los Pod Security
-#  Standards, con DMARC y con el análisis de Trivy: medir antes de exigir.
+#  validationActions: [Audit] registra las violaciones pero NO bloquea. Mismo
+#  camino que los Pod Security Standards, DMARC y el análisis de Trivy: medir
+#  antes de exigir.
 #
-#  Hay además una razón de seguridad operativa: con Audit, Kyverno configura
-#  su webhook para IGNORAR los fallos. Si Kyverno se cayera, los pods seguirían
-#  creándose. Con Enforce el webhook pasa a FALLAR ante un error, y en un
-#  clúster de un solo nodo eso significa que un Kyverno caído impediría crear
-#  cualquier pod, incluido el suyo propio: un bloqueo mutuo.
+#  Y hay una razón operativa además de la metodológica: con Audit, Kyverno
+#  configura su webhook para IGNORAR los fallos. Con Deny pasa a fallar ante un
+#  error, y en un clúster de un solo nodo eso significa que un Kyverno caído
+#  impediría crear cualquier pod, incluido el suyo propio: un bloqueo mutuo.
 #
-#  Solo se pasa a Enforce tras comprobar que el informe da 'pass' sobre la
+#  Se pasa a [Deny] solo tras comprobar que el informe da 'pass' sobre la
 #  imagen real en producción.
 # ============================================================================
-apiVersion: kyverno.io/v1
-kind: ClusterPolicy
+apiVersion: policies.kyverno.io/v1
+kind: ImageValidatingPolicy
 metadata:
   name: verificar-firma-imagenes-propias
   annotations:
@@ -35,72 +48,79 @@ metadata:
     policies.kyverno.io/severity: high
     policies.kyverno.io/description: >-
       Exige que toda imagen procedente de ghcr.io/gonzalo-pascual venga firmada
-      con cosign mediante OIDC por un flujo de trabajo de este repositorio, con
-      la firma anotada en el registro público de transparencia Rekor.
+      con cosign mediante OIDC por un flujo de trabajo de este repositorio.
 spec:
-  # Sin escaneo en segundo plano: no está instalado el background controller, y
-  # la verificación de firmas requiere alcanzar el registro en cada evaluación.
-  background: false
+  # --- A qué peticiones se aplica -------------------------------------------
+  matchConstraints:
+    resourceRules:
+      - apiGroups: [""]
+        apiVersions: ["v1"]
+        operations: ["CREATE", "UPDATE"]
+        resources: ["pods"]
 
-  # Si el registro o Rekor tardan, no queremos que la creación de pods se quede
-  # colgada indefinidamente.
-  webhookTimeoutSeconds: 30
+  # ───────────────────────────────────────────────────────────────────────────
+  #  EL ALCANCE ES LO MÁS IMPORTANTE DE TODO ESTE FICHERO.
+  #
+  #  Solo las imágenes de nuestro registro. Si aquí pusiéramos '*', Traefik,
+  #  cert-manager, ArgoCD, CoreDNS y el propio Kyverno necesitarían NUESTRA
+  #  firma para arrancar, y el clúster entero se vendría abajo: sus imágenes
+  #  están firmadas por sus autores, no por nosotros.
+  # ───────────────────────────────────────────────────────────────────────────
+  matchImageReferences:
+    - glob: "ghcr.io/gonzalo-pascual/*"
 
-  rules:
-    - name: firma-obligatoria-en-imagenes-propias
-      match:
-        any:
-          - resources:
-              kinds:
-                - Pod
-
-      verifyImages:
-        # ───────────────────────────────────────────────────────────────────
-        #  EL ALCANCE ES LO MÁS IMPORTANTE DE TODO ESTE FICHERO.
+  # --- Quién es una firma válida --------------------------------------------
+  attestors:
+    - name: cosign
+      cosign:
+        # Verificación SIN CLAVE PÚBLICA.
         #
-        #  Solo las imágenes de nuestro registro. Si aquí pusiera '*', Traefik,
-        #  cert-manager, ArgoCD, CoreDNS y el propio Kyverno necesitarían
-        #  nuestra firma para arrancar, y el clúster entero se vendría abajo:
-        #  sus imágenes están firmadas por sus autores, no por nosotros.
-        # ───────────────────────────────────────────────────────────────────
-        - imageReferences:
-            - "ghcr.io/gonzalo-pascual/*"
+        # No hay ninguna clave que distribuir ni custodiar. Se comprueba la
+        # IDENTIDAD que consta en el certificado efímero que Fulcio emitió
+        # durante la firma:
+        #
+        #   subject → qué flujo de qué repositorio firmó
+        #   issuer  → quién acreditó esa identidad (GitHub)
+        #
+        # Los dos juntos son lo que hace la verificación creíble. Comprobar
+        # solo que "está firmada" no vale nada: cualquiera puede firmar.
+        keyless:
+          identities:
+            - subject: "https://github.com/Gonzalo-Pascual/gonzalopascualweb/.github/workflows/*"
+              issuer: "https://token.actions.githubusercontent.com"
 
-          # Audit = registra y no bloquea. Ver la explicación del encabezado.
-          # Se cambia a Enforce cuando el informe confirme que pasa.
-          failureAction: Audit
+  # --- Qué se exige ----------------------------------------------------------
+  validationConfigurations:
+    # Exige que exista firma. Sin esto, una imagen sin ninguna firma pasaría
+    # por no haber nada que verificar.
+    required: true
 
-          # Exige que exista firma. Sin esto, una imagen sin ninguna firma
-          # pasaría la comprobación por no haber nada que verificar.
-          required: true
+    # Comprueba que la imagen se referencia por digest y no solo por etiqueta.
+    # Refuerza desde el clúster lo que ya hace el manifiesto: se despliega un
+    # contenido concreto, no un puntero que alguien pueda mover.
+    verifyDigest: true
 
-          # Comprueba que la imagen se referencia por digest y no solo por
-          # etiqueta. Refuerza desde el clúster lo que ya hacemos en el
-          # manifiesto: lo que se despliega es un contenido concreto, no un
-          # puntero que alguien pueda mover.
-          verifyDigest: true
+    # DEBE ser false mientras la acción sea Audit: mutar es un cambio, y
+    # contradice el "solo observar". Kyverno rechaza la política si no lo es.
+    # Se pondrá a true al pasar a [Deny], y entonces reescribirá a su digest
+    # cualquier imagen desplegada por etiqueta.
+    mutateDigest: false
 
-          # Si alguien desplegara por etiqueta, Kyverno reescribe la referencia
-          # al digest correspondiente en ese instante. Red de seguridad.
-          mutateDigest: true
+  # --- La comprobación en sí -------------------------------------------------
+  validations:
+    - expression: >-
+        images.containers.map(image,
+        verifyImageSignatures(image, [attestors.cosign])).all(e, e > 0)
+      message: >-
+        La imagen no tiene una firma valida emitida por un flujo de
+        Gonzalo-Pascual/gonzalopascualweb a traves de GitHub Actions.
 
-          attestors:
-            - entries:
-                # Verificación SIN CLAVE PÚBLICA.
-                #
-                # No hay ninguna clave que distribuir ni que custodiar. Se
-                # verifica la IDENTIDAD que consta en el certificado efímero
-                # que Fulcio emitió durante la firma:
-                #
-                #   subject → qué flujo de qué repositorio firmó
-                #   issuer  → quién acreditó esa identidad (GitHub)
-                #   rekor   → dónde consta el registro inmutable de la firma
-                #
-                # Los tres juntos son lo que hace la verificación creíble.
-                # Comprobar solo que "está firmada" no vale nada: cualquiera
-                # puede firmar una imagen.
-                - keyless:
-                    subject: "https://github.com/Gonzalo-Pascual/gonzalopascualweb/.github/workflows/*"
-                    issuer: "https://token.actions.githubusercontent.com"
-                    rekor:
-                      url: https://rekor.sigstore.dev
+  # Audit = registra y no bloquea. Ver la explicación del encabezado.
+  validationActions: [Audit]
+
+  evaluation:
+    background:
+      # Activado: permite que el controlador de informes evalúe también los
+      # pods que YA están corriendo, sin tener que recrearlos. Es lo que hace
+      # útil la fase de auditoría.
+      enabled: true
