@@ -45,7 +45,11 @@ spec:
           # Los dos parámetros de identidad no son opcionales: sin ellos sólo
           # comprobarías que ALGUIEN firmó la imagen, no que la firmara este
           # repositorio.
-          image: ghcr.io/gonzalo-pascual/portfolio@sha256:e68bbd3f2e17145fd217c05312eeb3a5b50e7b277ca7086ccd3248b789acdce4
+          # Formato 'etiqueta@digest'. Kubernetes usa SIEMPRE el digest cuando
+          # están los dos; la etiqueta ':main' existe para que Renovate sepa qué
+          # seguir y pueda proponer el digest nuevo tras cada construcción. Sin
+          # ella fallaba con "Could not determine new digest".
+          image: ghcr.io/gonzalo-pascual/portfolio:main@sha256:e68bbd3f2e17145fd217c05312eeb3a5b50e7b277ca7086ccd3248b789acdce4
           # Con un digest, "si no está, tráela" es seguro: el identificador
           # determina el contenido de forma unívoca, así que la copia en caché
           # nunca puede ser una imagen distinta.

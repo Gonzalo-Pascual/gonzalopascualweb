@@ -88,11 +88,28 @@ jobs:
         uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
         with:
           images: ${{ env.IMAGEN }}
-          # Una etiqueta legible por commit (sha-a1b2c3d) para orientarse en el
-          # registro. Deliberadamente NO se genera "latest": el manifiesto de
-          # Kubernetes apuntará al digest, que es lo único inmutable.
+          # DOS etiquetas, cada una con un propósito distinto:
+          #
+          #  sha-a1b2c3d → inmutable, una por commit. Sirve para saber de un
+          #                vistazo de qué código salió cada imagen del registro.
+          #
+          #  main        → MÓVIL: siempre apunta a la última construcción de la
+          #                rama principal. Existe únicamente para que Renovate
+          #                tenga algo que seguir.
+          #
+          # Lo segundo puede parecer una contradicción con todo lo anterior, y
+          # no lo es. Renovate necesita preguntar "¿qué digest tiene ahora la
+          # etiqueta X?"; sin etiqueta no sabe qué vigilar, y falla con
+          # "Could not determine new digest". Pero el manifiesto de Kubernetes
+          # referencia 'main@sha256:...', y ante ambos KUBERNETES USA EL DIGEST:
+          # la etiqueta es solo documentación y una pista para el robot. La
+          # garantía de inmutabilidad no se toca.
+          #
+          # Sigue sin generarse "latest", que es la etiqueta móvil por
+          # antonomasia y la que acaba usándose por descuido en producción.
           tags: |
             type=sha,prefix=sha-,format=short
+            type=raw,value=main,enable={{is_default_branch}}
           labels: |
             org.opencontainers.image.title=Portfolio de Gonzalo Pascual
             org.opencontainers.image.description=Web estatica servida con nginx sin privilegios
