@@ -23,7 +23,7 @@ metadata:
 spec:
   repo: https://argoproj.github.io/argo-helm
   chart: argo-cd
-  version: 10.9.0 # ArgoCD v3.5.2
+  version: 10.9.2 # ArgoCD v3.5.2
   targetNamespace: argocd
   valuesContent: |-
     # --- Componentes que NO se instalan --------------------------------------
