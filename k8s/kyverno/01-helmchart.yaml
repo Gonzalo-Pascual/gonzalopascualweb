@@ -1,0 +1,69 @@
+---
+# ============================================================================
+#  Kyverno — motor de políticas de admisión
+#
+#  Es la pieza que convierte la firma de cosign (ADR 0008) en un control real.
+#  Hasta ahora las imágenes se firmaban y NADA comprobaba esa firma: el clúster
+#  habría arrancado igual de contento una imagen firmada que una de un atacante.
+#  Firmar sin verificar es teatro; esto es la verificación.
+#
+#  Diferencia con ArgoCD: ArgoCD REVIERTE un cambio después de que ocurra.
+#  Kyverno lo RECHAZA antes de que exista. Es un control de admisión.
+#
+#  DIMENSIONADO: la VM está al 62% de memoria (2.370 Mi de 3.819). Kyverno
+#  completo levanta cuatro controladores; aquí se instalan dos.
+# ============================================================================
+apiVersion: helm.cattle.io/v1
+kind: HelmChart
+metadata:
+  name: kyverno
+  namespace: kube-system
+spec:
+  repo: https://kyverno.github.io/kyverno
+  chart: kyverno
+  version: 3.9.1 # Kyverno v1.19.1
+  targetNamespace: kyverno
+  valuesContent: |-
+    # --- Controlador de admisión: el que intercepta y decide -----------------
+    admissionController:
+      # EL CHART PONE 3 POR DEFECTO. En un nodo único, dos réplicas se quedarían
+      # en Pending para siempre, consumiendo nada pero ensuciando el estado.
+      replicas: 1
+      resources:
+        requests:
+          cpu: 50m
+          memory: 192Mi
+        limits:
+          # Límite de memoria estricto: si hay fuga, el contenedor muere y se
+          # reinicia, en lugar de tumbar la máquina.
+          memory: 384Mi
+          # Límite de CPU generoso: un límite de CPU no mata el proceso, lo
+          # ESTRANGULA. Apretarlo produciría webhooks lentos y timeouts en la
+          # creación de pods, que es un fallo muy difícil de diagnosticar.
+          cpu: 500m
+
+    # --- Controlador de informes ---------------------------------------------
+    # Genera los objetos PolicyReport, que son los que permiten LEER el
+    # resultado de la fase de auditoría sobre los pods que ya están corriendo.
+    # Sin él, en modo auditoría solo habría avisos en el momento de crear un pod.
+    reportsController:
+      enabled: true
+      resources:
+        requests:
+          cpu: 25m
+          memory: 128Mi
+        limits:
+          memory: 256Mi
+          cpu: 300m
+
+    # --- Controladores que NO se instalan ------------------------------------
+    # Cada uno desactivado es memoria que no se consume y superficie que no
+    # existe.
+
+    # Procesa reglas de tipo 'generate' y 'mutate existing'. No usamos ninguna.
+    backgroundController:
+      enabled: false
+
+    # Ejecuta políticas de limpieza programada. No usamos ninguna.
+    cleanupController:
+      enabled: false

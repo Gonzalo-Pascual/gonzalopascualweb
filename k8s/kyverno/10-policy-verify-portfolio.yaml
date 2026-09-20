@@ -1,0 +1,106 @@
+---
+# ============================================================================
+#  Política: las imágenes propias deben venir firmadas por este repositorio
+#
+#  QUÉ IMPIDE, en una frase: que alguien con acceso al clúster despliegue una
+#  imagen que no haya salido del pipeline de este repositorio.
+#
+#  Fíjate en el matiz, porque es lo interesante: Kyverno no comprueba si la
+#  imagen es "buena" — eso no lo sabe nadie. Comprueba su PROCEDENCIA. Y un
+#  atacante no puede falsificarla, porque necesitaría que GitHub le emitiera un
+#  testimonio OIDC en nombre de Gonzalo-Pascual/gonzalopascualweb.
+#
+#  ─── EMPIEZA EN MODO AUDITORÍA ───
+#
+#  failureAction: Audit registra las violaciones pero NO bloquea. Es
+#  deliberado y es el mismo camino que se siguió con los Pod Security
+#  Standards, con DMARC y con el análisis de Trivy: medir antes de exigir.
+#
+#  Hay además una razón de seguridad operativa: con Audit, Kyverno configura
+#  su webhook para IGNORAR los fallos. Si Kyverno se cayera, los pods seguirían
+#  creándose. Con Enforce el webhook pasa a FALLAR ante un error, y en un
+#  clúster de un solo nodo eso significa que un Kyverno caído impediría crear
+#  cualquier pod, incluido el suyo propio: un bloqueo mutuo.
+#
+#  Solo se pasa a Enforce tras comprobar que el informe da 'pass' sobre la
+#  imagen real en producción.
+# ============================================================================
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: verificar-firma-imagenes-propias
+  annotations:
+    policies.kyverno.io/title: Verificar la firma de las imágenes propias
+    policies.kyverno.io/category: Cadena de suministro
+    policies.kyverno.io/severity: high
+    policies.kyverno.io/description: >-
+      Exige que toda imagen procedente de ghcr.io/gonzalo-pascual venga firmada
+      con cosign mediante OIDC por un flujo de trabajo de este repositorio, con
+      la firma anotada en el registro público de transparencia Rekor.
+spec:
+  # Sin escaneo en segundo plano: no está instalado el background controller, y
+  # la verificación de firmas requiere alcanzar el registro en cada evaluación.
+  background: false
+
+  # Si el registro o Rekor tardan, no queremos que la creación de pods se quede
+  # colgada indefinidamente.
+  webhookTimeoutSeconds: 30
+
+  rules:
+    - name: firma-obligatoria-en-imagenes-propias
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+
+      verifyImages:
+        # ───────────────────────────────────────────────────────────────────
+        #  EL ALCANCE ES LO MÁS IMPORTANTE DE TODO ESTE FICHERO.
+        #
+        #  Solo las imágenes de nuestro registro. Si aquí pusiera '*', Traefik,
+        #  cert-manager, ArgoCD, CoreDNS y el propio Kyverno necesitarían
+        #  nuestra firma para arrancar, y el clúster entero se vendría abajo:
+        #  sus imágenes están firmadas por sus autores, no por nosotros.
+        # ───────────────────────────────────────────────────────────────────
+        - imageReferences:
+            - "ghcr.io/gonzalo-pascual/*"
+
+          # Audit = registra y no bloquea. Ver la explicación del encabezado.
+          # Se cambia a Enforce cuando el informe confirme que pasa.
+          failureAction: Audit
+
+          # Exige que exista firma. Sin esto, una imagen sin ninguna firma
+          # pasaría la comprobación por no haber nada que verificar.
+          required: true
+
+          # Comprueba que la imagen se referencia por digest y no solo por
+          # etiqueta. Refuerza desde el clúster lo que ya hacemos en el
+          # manifiesto: lo que se despliega es un contenido concreto, no un
+          # puntero que alguien pueda mover.
+          verifyDigest: true
+
+          # Si alguien desplegara por etiqueta, Kyverno reescribe la referencia
+          # al digest correspondiente en ese instante. Red de seguridad.
+          mutateDigest: true
+
+          attestors:
+            - entries:
+                # Verificación SIN CLAVE PÚBLICA.
+                #
+                # No hay ninguna clave que distribuir ni que custodiar. Se
+                # verifica la IDENTIDAD que consta en el certificado efímero
+                # que Fulcio emitió durante la firma:
+                #
+                #   subject → qué flujo de qué repositorio firmó
+                #   issuer  → quién acreditó esa identidad (GitHub)
+                #   rekor   → dónde consta el registro inmutable de la firma
+                #
+                # Los tres juntos son lo que hace la verificación creíble.
+                # Comprobar solo que "está firmada" no vale nada: cualquiera
+                # puede firmar una imagen.
+                - keyless:
+                    subject: "https://github.com/Gonzalo-Pascual/gonzalopascualweb/.github/workflows/*"
+                    issuer: "https://token.actions.githubusercontent.com"
+                    rekor:
+                      url: https://rekor.sigstore.dev
