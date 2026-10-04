@@ -38,14 +38,14 @@ jobs:
       # en git está comprometido para siempre; la única respuesta correcta es
       # revocarlo y emitir uno nuevo.
       - name: Descargar el código con el historial completo
-        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
 
       # gitleaks es gratuito para cuentas personales y repositorios públicos.
       # (Las cuentas de organización requieren una licencia en GITLEAKS_LICENSE.)
       - name: Buscar credenciales con gitleaks
-        uses: gitleaks/gitleaks-action@ff98106e4c7b2bc287b24eaf42907196329070c7 # v2
+        uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e # v3
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -60,7 +60,7 @@ jobs:
       security-events: write
     steps:
       - name: Descargar el código
-        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       # Trivy en modo "config" no busca vulnerabilidades de paquetes, sino
       # CONFIGURACIONES INSEGURAS: un puerto abierto de más en Terraform, un
