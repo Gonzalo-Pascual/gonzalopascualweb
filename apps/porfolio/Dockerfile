@@ -37,7 +37,7 @@
 #  un digest nuevo. Reproducibilidad y actualización no están en conflicto,
 #  pero hacen falta las dos piezas.
 # ============================================================================
-FROM nginxinc/nginx-unprivileged:1.31-alpine@sha256:2ddec616f1cb58bcac057aa388f28cb81e35137641ef4226d321714499329bd1
+FROM nginxinc/nginx-unprivileged:1.31-alpine@sha256:26b0bf6fbf07297983cb341998d79c831508787de26627dd2a112321b9c3a4af
 
 # Etiquetas estándar OCI. Sirven para que, dado un contenedor en ejecución, se
 # pueda averiguar de qué repositorio y de qué commit salió.
