@@ -13,18 +13,31 @@
 #     DMARC no encuentra nada.
 # ============================================================================
 
-# La IP del origen se lee del estado del stack de Hetzner en lugar de copiarla
-# a mano. Si la VM se recrea y cambia de IP, el DNS la sigue automáticamente.
-data "terraform_remote_state" "hetzner" {
-  backend = "local"
-
-  config = {
-    path = "../terraform-hetzner/terraform.tfstate"
-  }
+# La IP del origen se lee de las SALIDAS del stack de Hetzner en lugar de
+# copiarla a mano. Si la VM se recrea y cambia de IP, el DNS la sigue solo.
+#
+# Antes se usaba 'terraform_remote_state' con backend local, que leía el
+# fichero de estado COMPLETO del otro stack desde una ruta relativa. Al pasar a
+# HCP Terraform se sustituye por 'tfe_outputs', que es una mejora de seguridad
+# y no un simple cambio de sintaxis:
+#
+#   terraform_remote_state → acceso al estado ENTERO del otro stack: todos sus
+#                            recursos, atributos e identificadores.
+#   tfe_outputs            → acceso SOLO a las salidas que el otro stack haya
+#                            declarado explícitamente.
+#
+# Este stack necesita la IP del servidor y nada más. Mínimo privilegio aplicado
+# a la relación entre stacks: cada uno expone lo que decide exponer.
+data "tfe_outputs" "hetzner" {
+  organization = "gonzalopascual"
+  workspace    = "portfolio-hetzner"
 }
 
 locals {
-  origin_ipv4 = data.terraform_remote_state.hetzner.outputs.instance_public_ip
+  # 'nonsensitive_values' y no 'values': este último va marcado entero como
+  # sensible de forma preventiva, y ocultaría la IP en la salida del 'plan',
+  # justo donde hace falta verla para revisar el cambio.
+  origin_ipv4 = data.tfe_outputs.hetzner.nonsensitive_values.instance_public_ip
 }
 
 # --- Tráfico web -------------------------------------------------------------

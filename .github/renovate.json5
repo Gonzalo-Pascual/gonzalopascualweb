@@ -41,9 +41,27 @@
 
   labels: ["dependencias"],
 
-  // Topes para no despertarse con veinte propuestas abiertas.
-  prConcurrentLimit: 6,
-  prHourlyLimit: 3,
+  // Topes de propuestas simultáneas.
+  //
+  // HISTORIA: empezó en 6 y resultó ser un fallo de diseño. Las propuestas que
+  // esperan revisión MANUAL (charts, providers de Terraform, acciones de versión
+  // mayor) ocuparon los seis huecos, y una actualización de digest —que es un
+  // DESPLIEGUE— quedó en «Rate-Limited» sin poder crearse. El ciclo automático
+  // se paraba en silencio, sin ningún error, solo porque nadie había revisado
+  // otras propuestas que no tenían nada que ver.
+  //
+  // Se corrige por tres lados a la vez:
+  //   1. Se agrupan los providers de Terraform (ver packageRules): de tres
+  //      propuestas a una.
+  //   2. El tope sube a 10. Con la agrupación, el máximo realista es de ocho
+  //      propuestas simultáneas, así que nunca se llena.
+  //   3. Los digests tienen prioridad máxima (prPriority en su regla): si
+  //      alguna vez hubiera contención, se crean los primeros.
+  prConcurrentLimit: 10,
+  // Sin tope horario: con la agrupación no hay riesgo de avalancha, y un tope
+  // por hora podía retrasar precisamente las actualizaciones de digest, que son
+  // las que más importa que lleguen rápido.
+  prHourlyLimit: 0,
 
   // Propuestas por vulnerabilidad conocida: sin límite de horario ni de
   // concurrencia. Un fallo de seguridad no espera al lunes.
@@ -104,12 +122,22 @@
     {
       description: "Digests de imagen: la pieza que cierra el ciclo CI -> despliegue",
       matchUpdateTypes: ["digest", "pinDigest"],
+      // SOLO imágenes de contenedor. Sin esta línea la regla atrapaba también
+      // los digests de ACCIONES de GitHub (trivy-action está fijada a un hash
+      // de su rama master), les ponía el prefijo "deploy(digest):" y les
+      // aplicaba la fusión automática. Una acción del pipeline no es un
+      // despliegue y no debe fusionarse sola por ser un "digest".
+      matchDatasources: ["docker"],
       automerge: true,
       // Sin restricción horaria: cuando el pipeline publique una imagen nueva,
       // la propuesta se abre y se fusiona en minutos. A partir de ahí ArgoCD
       // la despliega solo. Es el último eslabón manual que quedaba.
       schedule: ["at any time"],
       commitMessagePrefix: "deploy(digest):",
+      // Prioridad máxima: si alguna vez se llenara el tope de propuestas
+      // simultáneas, un despliegue no debe esperar detrás de una propuesta
+      // que aguarda revisión humana.
+      prPriority: 10,
     },
     {
       description: "Parches: correcciones, se fusionan solas si el pipeline pasa",
@@ -135,6 +163,19 @@
       // AVISO: no hay ni un test de la API, así que el pipeline NO valida
       // estas actualizaciones. Se revisan a mano hasta que existan tests.
       automerge: false,
+    },
+    {
+      description: "Agrupa los providers de Terraform en una sola propuesta",
+      // Antes llegaban tres propuestas separadas (cloudflare, hcloud, http)
+      // ocupando tres huecos del tope de concurrencia. Agrupadas, uno.
+      matchManagers: ["terraform"],
+      groupName: "providers de Terraform",
+      // Siempre revisión manual, incluso si todo el grupo son parches. Un
+      // provider nuevo no cambia nada al fusionarse —Terraform no se aplica
+      // solo—, pero cambia el comportamiento en el siguiente 'apply', y eso se
+      // lee antes, no se descubre después.
+      automerge: false,
+      schedule: ["* 0-6 * * 1"],
     },
     {
       description: "El stack de Oracle está archivado: no se actualiza",
