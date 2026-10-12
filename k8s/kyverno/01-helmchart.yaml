@@ -19,9 +19,11 @@ metadata:
   name: kyverno
   namespace: kube-system
 spec:
+  # Sin la versión de Kyverno en un comentario, y repo/chart/version seguidos:
+  # ver la explicación en k8s/argocd/01-helmchart.yaml.
   repo: https://kyverno.github.io/kyverno
   chart: kyverno
-  version: 3.9.1 # Kyverno v1.19.1
+  version: 3.9.1
   targetNamespace: kyverno
   valuesContent: |-
     # --- Controlador de admisión: el que intercepta y decide -----------------

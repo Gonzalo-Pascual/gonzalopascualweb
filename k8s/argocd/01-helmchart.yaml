@@ -21,9 +21,18 @@ metadata:
   name: argocd
   namespace: kube-system
 spec:
+  # Sin comentario con la versión de ArgoCD a propósito: Renovate actualiza
+  # 'version' pero no los comentarios, y el comentario quedaba desfasado en
+  # cada subida. La versión real que instala el chart se consulta con:
+  #   kubectl -n argocd get deploy argocd-server \
+  #     -o jsonpath='{.spec.template.spec.containers[0].image}'
+  #
+  # OJO: repo, chart y version deben ir SEGUIDOS, sin nada entre medias. Es
+  # lo que busca la expresión regular de Renovate (.github/renovate.json5);
+  # un comentario intercalado haría que dejara de vigilar este chart.
   repo: https://argoproj.github.io/argo-helm
   chart: argo-cd
-  version: 10.10.3 # ArgoCD v3.5.4
+  version: 10.10.3
   targetNamespace: argocd
   valuesContent: |-
     # --- Componentes que NO se instalan --------------------------------------

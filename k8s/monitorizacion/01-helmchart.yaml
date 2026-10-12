@@ -21,9 +21,11 @@ metadata:
   name: alloy
   namespace: kube-system
 spec:
+  # Sin la versión de Alloy en un comentario, y repo/chart/version seguidos:
+  # ver la explicación en k8s/argocd/01-helmchart.yaml.
   repo: https://grafana.github.io/helm-charts
   chart: alloy
-  version: 1.13.1 # Alloy v1.20.1
+  version: 1.13.1
   targetNamespace: monitorizacion
   valuesContent: |-
     # --- RBAC: lo mínimo, NO lo que trae el chart -----------------------------
