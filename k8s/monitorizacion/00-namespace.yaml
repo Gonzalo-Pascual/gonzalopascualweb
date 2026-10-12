@@ -1,0 +1,17 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: monitorizacion
+  labels:
+    # Aquí se FUERZA "restricted", el nivel más estricto, y no "baseline" como
+    # en cert-manager, argocd o kyverno.
+    #
+    # La diferencia es que en este namespace todo el contexto de seguridad lo
+    # escribimos nosotros (ver 01-helmchart.yaml): no hay ningún componente de
+    # terceros con requisitos que no controlemos. Si una actualización futura
+    # del chart pidiera algo que restricted prohíbe, el pod sería rechazado y
+    # se vería en el Job helm-install-alloy; el pod anterior seguiría en marcha.
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/warn: restricted

@@ -1,0 +1,274 @@
+---
+# ============================================================================
+#  Grafana Alloy — agente de observabilidad
+#
+#  Recoge métricas y logs del clúster y los ENVÍA a Grafana Cloud. No guarda
+#  nada aquí ni sirve paneles: es un emisor.
+#
+#  POR QUÉ FUERA DEL CLÚSTER: un monitor que vive dentro de lo que vigila se
+#  cae con ello, y justo cuando más falta hace nadie avisa. Grafana Cloud está
+#  en otra infraestructura: si la VM desaparece, deja de recibir datos y eso
+#  mismo dispara la alerta.
+#
+#  POR QUÉ NO PROMETHEUS + GRAFANA AQUÍ: la VM está al ~76% de memoria. Esa
+#  pareja necesita cientos de MB más. Alloy, con esta configuración, ~100 MB.
+#
+#  Sólo conexiones SALIENTES (HTTPS a Grafana Cloud). No se abre ningún puerto.
+# ============================================================================
+apiVersion: helm.cattle.io/v1
+kind: HelmChart
+metadata:
+  name: alloy
+  namespace: kube-system
+spec:
+  repo: https://grafana.github.io/helm-charts
+  chart: alloy
+  version: 1.13.1 # Alloy v1.20.1
+  targetNamespace: monitorizacion
+  valuesContent: |-
+    # --- RBAC: lo mínimo, NO lo que trae el chart -----------------------------
+    #
+    # Las reglas por defecto del chart incluyen 'get/list/watch' sobre TODOS
+    # los Secrets del clúster (las usa un componente, remote.kubernetes.secret,
+    # que aquí no se usa). Con ellas, quien comprometiera este pod podría leer
+    # el token de Cloudflare, la contraseña inicial de ArgoCD y cualquier otro
+    # Secret. También concede acceso a ConfigMaps, eventos, Ingress, servicios
+    # y varios CRDs que esta configuración no toca.
+    #
+    # Se sustituyen por exactamente lo que usa la configuración de abajo:
+    rbac:
+      create: true
+      rules:
+        # discovery.kubernetes (role = "pod"): descubrir los pods.
+        - apiGroups: [""]
+          resources: ["pods"]
+          verbs: ["get", "list", "watch"]
+        # loki.source.kubernetes: leer sus logs. Sólo 'get': no hace falta más.
+        - apiGroups: [""]
+          resources: ["pods/log"]
+          verbs: ["get"]
+      clusterRules:
+        # discovery.kubernetes (role = "node"): descubrir el nodo.
+        - apiGroups: [""]
+          resources: ["nodes"]
+          verbs: ["get", "list", "watch"]
+        # Leer las métricas del kubelet. Es 'nodes/metrics' y NO 'nodes/proxy':
+        # la documentación de Kubernetes advierte que nodes/proxy da acceso a
+        # toda la API del kubelet, incluida la ejecución de comandos en
+        # cualquier pod del nodo. nodes/metrics sólo permite leer métricas.
+        - apiGroups: [""]
+          resources: ["nodes/metrics"]
+          verbs: ["get"]
+
+    # No se usan los CRDs del chart (PodLogs). Menos objetos, menos superficie.
+    crds:
+      create: false
+
+    # Un solo pod para todo el clúster. Como los logs se leen por la API de
+    # Kubernetes y no del disco del nodo, no hace falta un pod por nodo.
+    controller:
+      type: deployment
+      replicas: 1
+      volumes:
+        extra:
+          # Almacén de trabajo de Alloy (cola de envío). El sistema de ficheros
+          # del contenedor es de sólo lectura; esto es lo único escribible.
+          - name: almacen
+            emptyDir:
+              sizeLimit: 256Mi
+
+    # Sin Service: nadie necesita conectarse a Alloy.
+    service:
+      enabled: false
+
+    # El chart ya reinicia el pod cuando cambia la configuración (anotación
+    # checksum/config). El contenedor auxiliar que la recarga en caliente
+    # sería un segundo proceso y ~50 MB más para nada.
+    configReloader:
+      enabled: false
+
+    global:
+      podSecurityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+
+    alloy:
+      # No enviar estadísticas anónimas de uso a Grafana Labs.
+      enableReporting: false
+
+      storagePath: /tmp/alloy
+      mounts:
+        extra:
+          - name: almacen
+            mountPath: /tmp/alloy
+
+      # La imagen de Alloy arranca como root si no se le dice otra cosa. Se
+      # fuerza su usuario propio (UID 473, creado en la imagen) y todo lo que
+      # exige el nivel "restricted" del namespace.
+      securityContext:
+        runAsUser: 473
+        runAsGroup: 473
+        runAsNonRoot: true
+        allowPrivilegeEscalation: false
+        readOnlyRootFilesystem: true
+        capabilities:
+          drop:
+            - ALL
+        seccompProfile:
+          type: RuntimeDefault
+
+      resources:
+        requests:
+          cpu: 25m
+          memory: 96Mi
+        limits:
+          # Tope duro: si Alloy crece por una avalancha de logs, se reinicia él
+          # y no se lleva por delante la máquina, que es lo que vigila.
+          memory: 256Mi
+          cpu: 500m
+
+      # El token llega como variable de entorno desde el Secret, que NO está
+      # en git (ver secret-grafana-cloud.example.yaml). La configuración de
+      # abajo lo lee con sys.env().
+      extraEnv:
+        - name: GRAFANA_CLOUD_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: grafana-cloud
+              key: token
+
+      configMap:
+        content: |-
+          // ================================================================
+          //  MÉTRICAS: las del propio kubelet, sin instalar nada más.
+          //
+          //  /metrics/resource → CPU y memoria del nodo, de cada pod y de
+          //                      cada contenedor.
+          //  /metrics/cadvisor → disco, red y muertes por falta de memoria.
+          //
+          //  Así no hace falta node-exporter (que exige montar /proc y /sys
+          //  del nodo) ni kube-state-metrics (otro pod más en marcha).
+          // ================================================================
+          discovery.kubernetes "nodos" {
+            role = "node"
+          }
+
+          prometheus.scrape "kubelet" {
+            job_name          = "kubelet"
+            targets           = discovery.kubernetes.nodos.targets
+            scheme            = "https"
+            metrics_path      = "/metrics/resource"
+            scrape_interval   = "60s"
+            bearer_token_file = "/var/run/secrets/kubernetes.io/serviceaccount/token"
+            tls_config {
+              ca_file = "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
+            }
+            forward_to = [prometheus.relabel.filtro.receiver]
+          }
+
+          prometheus.scrape "cadvisor" {
+            job_name          = "cadvisor"
+            targets           = discovery.kubernetes.nodos.targets
+            scheme            = "https"
+            metrics_path      = "/metrics/cadvisor"
+            scrape_interval   = "60s"
+            bearer_token_file = "/var/run/secrets/kubernetes.io/serviceaccount/token"
+            tls_config {
+              ca_file = "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
+            }
+            forward_to = [prometheus.relabel.filtro.receiver]
+          }
+
+          // Sólo se envían las métricas que se usan. cAdvisor genera cientos
+          // de series; el plan gratuito admite 10.000 y no tiene sentido
+          // pagar en cuota (ni en tráfico) por lo que nadie va a mirar.
+          prometheus.relabel "filtro" {
+            forward_to = [prometheus.remote_write.grafana_cloud.receiver]
+            rule {
+              source_labels = ["__name__"]
+              regex         = "up|node_cpu_usage_seconds_total|node_memory_working_set_bytes|machine_memory_bytes|machine_cpu_cores|pod_cpu_usage_seconds_total|pod_memory_working_set_bytes|container_cpu_usage_seconds_total|container_memory_working_set_bytes|container_oom_events_total|container_fs_usage_bytes|container_fs_limit_bytes|container_network_receive_bytes_total|container_network_transmit_bytes_total"
+              action        = "keep"
+            }
+          }
+
+          prometheus.remote_write "grafana_cloud" {
+            external_labels = { cluster = "portfolio" }
+            endpoint {
+              url = "https://prometheus-prod-39-prod-eu-north-0.grafana.net/api/prom/push"
+              basic_auth {
+                username = "3658323"
+                password = sys.env("GRAFANA_CLOUD_TOKEN")
+              }
+            }
+          }
+
+          // ================================================================
+          //  LOGS: de todos los contenedores, leídos por la API de Kubernetes.
+          //
+          //  Ventaja frente a leer /var/log/pods del disco: no hace falta
+          //  montar el sistema de ficheros del nodo ni ejecutar como root.
+          // ================================================================
+          discovery.kubernetes "pods" {
+            role = "pod"
+          }
+
+          discovery.relabel "pods" {
+            targets = discovery.kubernetes.pods.targets
+
+            rule {
+              source_labels = ["__meta_kubernetes_namespace"]
+              target_label  = "namespace"
+            }
+            rule {
+              source_labels = ["__meta_kubernetes_pod_name"]
+              target_label  = "pod"
+            }
+            rule {
+              source_labels = ["__meta_kubernetes_pod_container_name"]
+              target_label  = "container"
+            }
+            // El descubrimiento crea un objetivo POR CADA PUERTO declarado en
+            // un contenedor: Traefik, con cuatro puertos, aparecería cuatro
+            // veces y sus logs llegarían cuadruplicados. Quitando las
+            // etiquetas del puerto, los cuatro objetivos pasan a ser idénticos
+            // y se lee una sola vez.
+            rule {
+              action = "labeldrop"
+              regex  = "__meta_kubernetes_pod_container_port_.*|__address__"
+            }
+          }
+
+          loki.source.kubernetes "pods" {
+            targets    = discovery.relabel.pods.output
+            forward_to = [loki.process.recientes.receiver]
+          }
+
+          // Al arrancar, Alloy lee el log de cada contenedor DESDE EL
+          // PRINCIPIO. La marca de "hasta dónde he leído" vive en un emptyDir,
+          // que se pierde cada vez que el pod se recrea (por ejemplo, al
+          // actualizar el chart). Sin este filtro, cada actualización
+          // reenviaría semanas de logs: Grafana Cloud rechaza lo que tiene más
+          // de 7 días con un error 400 por lote, y lo de los últimos 7 días
+          // llegaría DUPLICADO. Se descubrió en la primera instalación.
+          //
+          // Una hora de margen cubre de sobra el hueco de un reinicio.
+          loki.process "recientes" {
+            stage.drop {
+              older_than          = "1h"
+              drop_counter_reason = "anterior_al_arranque"
+            }
+            forward_to = [loki.write.grafana_cloud.receiver]
+          }
+
+          loki.write "grafana_cloud" {
+            external_labels = { cluster = "portfolio" }
+            endpoint {
+              // A la URL del portal hay que añadirle la ruta de envío.
+              url = "https://logs-prod-025.grafana.net/loki/api/v1/push"
+              basic_auth {
+                username = "1824826"
+                password = sys.env("GRAFANA_CLOUD_TOKEN")
+              }
+            }
+          }

@@ -1,0 +1,24 @@
+---
+# ============================================================================
+#  Alloy no recibe conexiones de nadie.
+#
+#  Su servidor HTTP (puerto 12345: interfaz web y depuración) sólo lo usa el
+#  kubelet para la sonda de disponibilidad, que sale del propio nodo y el
+#  controlador de red de k3s siempre permite. Ningún pod tiene motivo para
+#  hablar con él, así que se deniega toda entrada.
+#
+#  La SALIDA no se restringe, y es una decisión consciente: Alloy necesita
+#  HTTPS hacia Grafana Cloud, cuyas IPs no son fijas, así que la regla tendría
+#  que ser "443 hacia cualquier sitio", que es casi lo mismo que no tenerla.
+#  La protección real de este componente está en otro sitio: su RBAC mínimo
+#  (01-helmchart.yaml) y un token que sólo puede escribir.
+# ============================================================================
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: denegar-entrada
+  namespace: monitorizacion
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
