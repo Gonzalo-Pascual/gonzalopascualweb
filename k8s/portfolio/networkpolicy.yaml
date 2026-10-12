@@ -1,0 +1,70 @@
+---
+# ============================================================================
+#  Políticas de red del portfolio
+#
+#  Por defecto Kubernetes es una red PLANA: cualquier pod puede hablar con
+#  cualquier otro pod del clúster, en cualquier puerto. Si un atacante tomara
+#  el control de un contenedor cualquiera, podría llegar a todos los demás.
+#
+#  Aquí se invierte el modelo con dos piezas:
+#
+#    1. Denegar TODO, entrante y saliente, en el namespace.
+#    2. Abrir exactamente un camino: Traefik → portfolio, puerto 8080.
+#
+#  Es el mismo principio que el firewall de Hetzner (lista blanca, no lista
+#  negra), aplicado ahora DENTRO del clúster.
+#
+#  k3s aplica estas políticas de serie con su controlador integrado
+#  (kube-router), así que no hace falta instalar ningún componente más.
+#
+#  Las sondas de salud del kubelet no se ven afectadas: salen del propio nodo,
+#  y el controlador de k3s permite siempre el tráfico que se origina en él.
+# ============================================================================
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: denegar-todo
+spec:
+  # Selector vacío = TODOS los pods del namespace, también los que se creen
+  # en el futuro. Un pod nuevo nace aislado hasta que alguien le abra camino
+  # de forma explícita, en lugar de nacer expuesto.
+  podSelector: {}
+  policyTypes:
+    - Ingress
+    - Egress
+  # Sin reglas 'ingress' ni 'egress': no se permite nada.
+  #
+  # El tráfico SALIENTE también se cierra, y es la mitad más valiosa. nginx
+  # sólo sirve ficheros estáticos: no resuelve DNS ni se conecta a nada. Si
+  # alguien lograra ejecutar código dentro del contenedor, no podría descargar
+  # herramientas, ni exfiltrar datos, ni saltar a otro servicio.
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: permitir-traefik-a-portfolio
+spec:
+  podSelector:
+    matchLabels:
+      app: portfolio
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        # Las dos condiciones van en el MISMO elemento de la lista, y eso
+        # significa "Y": pods de Traefik que además estén en kube-system.
+        # Escritas como dos elementos separados significarían "O", y
+        # cualquier pod de kube-system, o cualquier pod llamado traefik en
+        # cualquier namespace, podría entrar. Es un error muy frecuente.
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: traefik
+      ports:
+        # El puerto del CONTENEDOR (8080), no el del Service (80): la política
+        # se evalúa sobre el paquete que llega al pod, cuando el Service ya ha
+        # traducido el puerto.
+        - protocol: TCP
+          port: 8080
