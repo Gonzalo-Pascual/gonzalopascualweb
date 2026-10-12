@@ -19,7 +19,7 @@
 #  Para reproducir el análisis en local con estas excepciones aplicadas:
 #
 #    trivy config . --severity HIGH,CRITICAL \
-#      --ignorefile .trivyignore.yaml --skip-dirs apps/api/.venv
+#      --ignorefile .trivyignore.yaml
 # ============================================================================
 
 misconfigurations:

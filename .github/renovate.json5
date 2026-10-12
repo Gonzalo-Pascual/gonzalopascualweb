@@ -156,15 +156,6 @@
       schedule: ["* 0-6 * * 1"],
     },
     {
-      description: "Agrupa las dependencias de Python de la mini-API",
-      matchManagers: ["pip_requirements"],
-      groupName: "dependencias de la API",
-      schedule: ["* 0-6 * * 1"],
-      // AVISO: no hay ni un test de la API, así que el pipeline NO valida
-      // estas actualizaciones. Se revisan a mano hasta que existan tests.
-      automerge: false,
-    },
-    {
       description: "Agrupa los providers de Terraform en una sola propuesta",
       // Antes llegaban tres propuestas separadas (cloudflare, hcloud, http)
       // ocupando tres huecos del tope de concurrencia. Agrupadas, uno.

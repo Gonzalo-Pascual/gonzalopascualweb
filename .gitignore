@@ -41,12 +41,6 @@ Thumbs.db
 # --- Logs --------------------------------------------------------------------
 *.log
 
-# --- Python / API ------------------------------------------------------------
-.venv/
-venv/
-*.db
-*.sqlite3
-
 # --- Kubernetes --------------------------------------------------------------
 # El kubeconfig lleva el certificado de cliente de administrador del clúster:
 # quien lo tenga es root en Kubernetes. Nunca a git.
