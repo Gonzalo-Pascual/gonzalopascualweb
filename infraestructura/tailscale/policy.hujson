@@ -1,0 +1,43 @@
+// ============================================================================
+//  Política de acceso de la red privada (tailnet) de Tailscale
+//
+//  Este fichero es la COPIA VERSIONADA de la política. La que manda es la que
+//  está en la consola de Tailscale (Access controls); se pega allí a mano.
+//  Cualquier cambio se hace primero aquí, se revisa en git, y después se pega.
+//
+//  Por defecto Tailscale lo permite TODO entre los dispositivos de la tailnet.
+//  Eso significa que la VM, una máquina expuesta a Internet, podría abrir
+//  conexiones hacia tu ordenador. Si alguien la comprometiera, tendría un
+//  camino directo a tu red de casa. Esta política lo corta: el tráfico sólo
+//  puede ir en UN sentido, de ti hacia el servidor, y a un único puerto.
+// ============================================================================
+{
+	// Quién puede ponerle la etiqueta 'tag:portfolio' a un dispositivo.
+	//
+	// Etiquetar la VM tiene dos ventajas:
+	//  1. La identidad del servidor deja de ser "un dispositivo de Gonzalo" y
+	//     pasa a ser "un servidor": las reglas se escriben sobre su función.
+	//  2. Los dispositivos etiquetados NO caducan. Uno normal pide volver a
+	//     iniciar sesión cada 180 días; en un servidor eso significaría
+	//     quedarse fuera sin aviso el día que caducara.
+	"tagOwners": {
+		"tag:portfolio": ["autogroup:admin"],
+	},
+
+	"grants": [
+		{
+			// Tus dispositivos → el servidor, sólo SSH. Por el túnel SSH pasa
+			// también la API de Kubernetes, así que no hace falta abrir 6443.
+			"src": ["autogroup:member"],
+			"dst": ["tag:portfolio"],
+			"ip":  ["tcp:22"],
+		},
+		// NO hay ninguna regla con 'tag:portfolio' como origen: el servidor no
+		// puede iniciar conexiones hacia nada dentro de la tailnet.
+	],
+
+	// Tailscale SSH (que sustituye las claves por la identidad de Tailscale)
+	// queda DESACTIVADO a propósito. Se sigue usando OpenSSH con clave: así hay
+	// dos barreras independientes, estar en la tailnet Y tener la clave privada.
+	"ssh": [],
+}

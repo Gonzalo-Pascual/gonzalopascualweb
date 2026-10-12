@@ -8,7 +8,11 @@
 # Se crea en: Hetzner Cloud Console > proyecto > Security > API tokens
 hcloud_token = "PON_AQUI_TU_TOKEN_DE_HETZNER"
 
-# Tu IP pública, con máscara /32 (una sola dirección).
-# Averíguala con:  curl -4 -s https://api.ipify.org
-# Es el único origen que podrá abrir SSH contra el servidor.
-allowed_ssh_cidr = "88.12.34.56/32"
+# --- SOLO EN UNA EMERGENCIA ---------------------------------------------------
+# La administración va por Tailscale y el puerto 22 está cerrado a Internet.
+# Si Tailscale fallara, descomenta estas dos líneas con tu IP pública ACTUAL
+# (averíguala con:  curl -4 -s https://api.ipify.org) y aplica. En cuanto esté
+# resuelto, vuelve a comentarlas y aplica otra vez.
+#
+# ssh_emergencia   = true
+# allowed_ssh_cidr = "88.12.34.56/32"

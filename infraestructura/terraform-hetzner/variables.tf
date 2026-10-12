@@ -22,15 +22,25 @@ variable "ssh_public_key_path" {
   default     = "~/.ssh/oci_portfolio.pub"
 }
 
-# A propósito SIN valor por defecto: obligar a declararlo explícitamente evita
-# que un despiste deje el puerto 22 abierto a Internet. Si falta, Terraform lo
-# pide por consola en vez de asumir nada.
+# Interruptor de emergencia. En condiciones normales el puerto 22 NO existe
+# para Internet: la administración va por Tailscale. Sólo si Tailscale fallara
+# se pone a true, se aplica, se arregla el problema y se vuelve a false.
+variable "ssh_emergencia" {
+  type        = bool
+  description = "Reabre SSH e ICMP desde allowed_ssh_cidr. Sólo si Tailscale no funciona."
+  default     = false
+}
+
+# Sólo se usa con ssh_emergencia = true. Sin valor por defecto útil a
+# propósito: en una emergencia hay que escribir la IP de ESE momento, porque la
+# doméstica cambia a menudo y una guardada de hace semanas no serviría.
 variable "allowed_ssh_cidr" {
   type        = string
-  description = "Única red autorizada a abrir SSH e ICMP. Tu IP pública con máscara /32 (ej. 88.12.34.56/32)."
+  description = "IP pública de administración con máscara /32 (ej. 88.12.34.56/32). Sólo para la emergencia."
+  default     = null
 
   validation {
-    condition     = can(cidrhost(var.allowed_ssh_cidr, 0))
+    condition     = var.allowed_ssh_cidr == null || can(cidrhost(var.allowed_ssh_cidr, 0))
     error_message = "Debe ser un CIDR válido, con la máscara incluida. Ejemplo: 88.12.34.56/32"
   }
 

@@ -100,6 +100,58 @@
         enabled: true
         state: started
 
+    # --- Tailscale: acceso de administración por red privada -----------------
+    #
+    # Sustituye al puerto 22 abierto en Internet. La política de quién puede
+    # llegar a qué vive en infraestructura/tailscale/policy.hujson.
+    #
+    # Se instala desde el repositorio oficial de Tailscale, con su clave de
+    # firma en un fichero propio y referenciada con 'signed-by'. Así esa clave
+    # SÓLO vale para los paquetes de ese repositorio: no puede firmar un
+    # paquete que se haga pasar por uno de Ubuntu.
+    #
+    # Lo que Ansible NO hace es dar de alta la máquina en la tailnet. Eso exige
+    # una credencial, y la alternativa sería guardar una clave de autenticación
+    # aquí o en un fichero de variables. Se hace una sola vez y a mano, con un
+    # inicio de sesión interactivo que no deja ningún secreto en disco:
+    #
+    #   tailscale up --advertise-tags=tag:portfolio --hostname=vm-portfolio --accept-dns=false
+    #   tailscale set --auto-update
+    #
+    # --accept-dns=false es IMPORTANTE en este servidor: sin él, Tailscale
+    # reescribe /etc/resolv.conf, y el DNS interno de Kubernetes (CoreDNS) lo
+    # usa para resolver todo lo de fuera. Un cambio ahí podría dejar a
+    # cert-manager sin llegar a Let's Encrypt, o al clúster sin poder
+    # descargar imágenes.
+    - name: Descargar la clave de firma del repositorio de Tailscale
+      ansible.builtin.get_url:
+        url: https://pkgs.tailscale.com/stable/ubuntu/noble.noarmor.gpg
+        dest: /usr/share/keyrings/tailscale-archive-keyring.gpg
+        owner: root
+        group: root
+        mode: "0644"
+
+    - name: Añadir el repositorio de Tailscale
+      ansible.builtin.copy:
+        dest: /etc/apt/sources.list.d/tailscale.list
+        owner: root
+        group: root
+        mode: "0644"
+        content: |
+          deb [signed-by=/usr/share/keyrings/tailscale-archive-keyring.gpg] https://pkgs.tailscale.com/stable/ubuntu noble main
+
+    - name: Instalar Tailscale
+      ansible.builtin.apt:
+        name: tailscale
+        state: present
+        update_cache: true
+
+    - name: Activar y arrancar el servicio de Tailscale
+      ansible.builtin.service:
+        name: tailscaled
+        enabled: true
+        state: started
+
     # La versión de k3s queda FIJADA, igual que las imágenes por digest y los
     # charts por versión. Sin ella, el instalador trae la última publicada el
     # día que se ejecute: reconstruir la VM dentro de un año daría un clúster

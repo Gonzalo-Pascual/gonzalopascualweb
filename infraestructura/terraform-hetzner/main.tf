@@ -17,7 +17,9 @@ output "instance_public_ip" {
   value       = hcloud_server.web.ipv4_address
 }
 
-output "ssh_command" {
-  description = "Comando para conectarte (en Hetzner el usuario es root)."
+# Por la IP pública sólo se puede entrar con ssh_emergencia = true. En el día
+# a día se usa la IP de Tailscale (ver infraestructura/ansible/inventory.ini).
+output "ssh_command_emergencia" {
+  description = "Comando SSH por IP pública. Sólo funciona con ssh_emergencia = true."
   value       = "ssh -i ~/.ssh/oci_portfolio root@${hcloud_server.web.ipv4_address}"
 }

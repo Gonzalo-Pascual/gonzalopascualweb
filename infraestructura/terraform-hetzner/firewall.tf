@@ -47,21 +47,48 @@ locals {
 resource "hcloud_firewall" "web" {
   name = "fw-portfolio"
 
-  # --- Administración -------------------------------------------------------
+  # --- Administración: NINGÚN puerto abierto a Internet ----------------------
+  #
+  #  SSH (y, a través de su túnel, la API de Kubernetes) se alcanza sólo por
+  #  la red privada de Tailscale. Tailscale no necesita ningún puerto de
+  #  ENTRADA: la VM abre la conexión hacia fuera, y la salida está libre.
+  #
+  #  Antes había aquí una regla para el 22 limitada a la IP de casa. Era
+  #  segura, pero frágil: la IP doméstica cambió cuatro veces en seis semanas,
+  #  y cada cambio dejaba sin acceso hasta editar el tfvars y reaplicar.
+  #
+  #  SALIDA DE EMERGENCIA: si Tailscale fallase, 'ssh_emergencia = true' en el
+  #  tfvars reabre el 22 (y el ICMP, para diagnosticar) SÓLO para
+  #  allowed_ssh_cidr. Funciona aunque la VM sea inalcanzable, porque Terraform
+  #  habla con la API de Hetzner, no con la máquina. Se vuelve a false en
+  #  cuanto se haya resuelto.
 
-  rule {
-    description = "SSH solo desde la IP de administracion"
-    direction   = "in"
-    protocol    = "tcp"
-    port        = "22"
-    source_ips  = [var.allowed_ssh_cidr]
+  dynamic "rule" {
+    for_each = var.ssh_emergencia ? ["tcp"] : []
+    content {
+      description = "EMERGENCIA: SSH desde la IP de administracion"
+      direction   = "in"
+      protocol    = "tcp"
+      port        = "22"
+      source_ips  = [var.allowed_ssh_cidr]
+    }
   }
 
-  rule {
-    description = "ICMP solo desde la IP de administracion (diagnostico)"
-    direction   = "in"
-    protocol    = "icmp"
-    source_ips  = [var.allowed_ssh_cidr]
+  dynamic "rule" {
+    for_each = var.ssh_emergencia ? ["icmp"] : []
+    content {
+      description = "EMERGENCIA: ICMP desde la IP de administracion"
+      direction   = "in"
+      protocol    = "icmp"
+      source_ips  = [var.allowed_ssh_cidr]
+    }
+  }
+
+  lifecycle {
+    precondition {
+      condition     = !var.ssh_emergencia || var.allowed_ssh_cidr != null
+      error_message = "ssh_emergencia = true exige indicar allowed_ssh_cidr con tu IP pública actual (/32)."
+    }
   }
 
   # --- Tráfico web: únicamente a través de Cloudflare -----------------------
@@ -94,7 +121,7 @@ output "cloudflare_ranges_count" {
   value       = length(local.cloudflare_ips)
 }
 
-output "ssh_allowed_from" {
-  description = "Origen que podrá abrir SSH. Compruébalo ANTES de aplicar."
-  value       = var.allowed_ssh_cidr
+output "ssh_publico" {
+  description = "Estado del puerto 22 en Internet. Compruébalo ANTES de aplicar."
+  value       = var.ssh_emergencia ? "ABIERTO (emergencia) para ${var.allowed_ssh_cidr}" : "cerrado: acceso sólo por Tailscale"
 }
