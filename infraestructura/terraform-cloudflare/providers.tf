@@ -21,21 +21,11 @@ terraform {
       version = "~> 5.0"
     }
 
-    # Solo para leer las SALIDAS del workspace de Hetzner (ver dns.tf).
-    # Fijado al parche y no a la menor: el provider sigue en 0.x, y en
-    # versionado semántico eso significa que cada menor puede romper.
-    tfe = {
-      source  = "hashicorp/tfe"
-      version = "~> 0.82.0"
-    }
+    # El provider 'tfe' (que leía la IP del stack de Hetzner) se retiró el
+    # 2026-10-12 junto con el registro A: la web ya no tiene servidor propio.
   }
 }
 
 provider "cloudflare" {
   api_token = var.cloudflare_api_token
 }
-
-# Sin token explícito, a propósito: lo toma del fichero de credenciales que
-# escribe 'terraform login' (~/.terraform.d/credentials.tfrc.json). No hay
-# ningún secreto nuevo que guardar en el repositorio ni en el .tfvars.
-provider "tfe" {}

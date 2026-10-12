@@ -13,8 +13,13 @@
   "$schema": "node_modules/wrangler/config-schema.json",
 
   // Debe coincidir con el nombre del Worker creado en el panel.
-  "name": "gonzalopascual",
+  "name": "gonzalopascualweb",
   "compatibility_date": "2026-10-01",
+
+  // Sin URLs de vista previa. Workers Builds construye también las ramas que
+  // no son main (las de Renovate, por ejemplo), y cada una publicaría una
+  // copia de la web en una dirección pública distinta.
+  "preview_urls": false,
 
   // Sin "main": no hay código que ejecutar, sólo ficheros que servir.
   "assets": {

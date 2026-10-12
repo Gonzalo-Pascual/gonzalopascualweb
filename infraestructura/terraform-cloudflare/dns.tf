@@ -1,68 +1,20 @@
 # ============================================================================
 #  Registros DNS de gonzalopascual.es
 #
-#  Dos familias de registros con reglas opuestas:
+#  TRÁFICO WEB: ya NO está aquí. Desde el 2026-10-12 la web se sirve desde
+#  Cloudflare Workers (ver wrangler.jsonc en la raíz). Los dominios
+#  gonzalopascual.es y www.gonzalopascual.es se conectan al Worker como
+#  "Custom Domains" desde su panel, y es Cloudflare quien crea y gestiona esos
+#  registros; si Terraform también los declarase, los dos se pelearían por el
+#  mismo nombre. Antes había aquí un registro A hacia la VM de Hetzner (leído
+#  del otro stack con tfe_outputs) y un CNAME para www.
 #
-#   · Tráfico WEB (A, CNAME www)  → proxied = true.
-#     Cloudflare oculta la IP real, filtra con su WAF y absorbe DDoS.
-#
-#   · Correo e infraestructura (MX, TXT, _dmarc, autodiscover) → proxied = false.
-#     Proxear estos registros los ROMPE: Cloudflare solo sabe hacer de proxy
-#     para HTTP/HTTPS, y al proxear un CNAME deja de devolver el destino real y
-#     contesta con sus propias IPs. Un servidor de correo que busque la política
-#     DMARC no encuentra nada.
+#  CORREO E INFRAESTRUCTURA (MX, TXT, _dmarc, autodiscover) → proxied = false.
+#  Proxear estos registros los ROMPE: Cloudflare solo sabe hacer de proxy para
+#  HTTP/HTTPS, y al proxear un CNAME deja de devolver el destino real y contesta
+#  con sus propias IPs. Un servidor de correo que busque la política DMARC no
+#  encuentra nada.
 # ============================================================================
-
-# La IP del origen se lee de las SALIDAS del stack de Hetzner en lugar de
-# copiarla a mano. Si la VM se recrea y cambia de IP, el DNS la sigue solo.
-#
-# Antes se usaba 'terraform_remote_state' con backend local, que leía el
-# fichero de estado COMPLETO del otro stack desde una ruta relativa. Al pasar a
-# HCP Terraform se sustituye por 'tfe_outputs', que es una mejora de seguridad
-# y no un simple cambio de sintaxis:
-#
-#   terraform_remote_state → acceso al estado ENTERO del otro stack: todos sus
-#                            recursos, atributos e identificadores.
-#   tfe_outputs            → acceso SOLO a las salidas que el otro stack haya
-#                            declarado explícitamente.
-#
-# Este stack necesita la IP del servidor y nada más. Mínimo privilegio aplicado
-# a la relación entre stacks: cada uno expone lo que decide exponer.
-data "tfe_outputs" "hetzner" {
-  organization = "gonzalopascual"
-  workspace    = "portfolio-hetzner"
-}
-
-locals {
-  # 'nonsensitive_values' y no 'values': este último va marcado entero como
-  # sensible de forma preventiva, y ocultaría la IP en la salida del 'plan',
-  # justo donde hace falta verla para revisar el cambio.
-  origin_ipv4 = data.tfe_outputs.hetzner.nonsensitive_values.instance_public_ip
-}
-
-# --- Tráfico web -------------------------------------------------------------
-
-resource "cloudflare_dns_record" "apex" {
-  zone_id = var.zone_id
-  name    = var.domain
-  type    = "A"
-  content = local.origin_ipv4
-  proxied = true
-  ttl     = 1 # 1 = automático; obligatorio cuando proxied = true
-  comment = "Origen: VM de Hetzner. Gestionado por Terraform."
-}
-
-# www como CNAME al apex en lugar de un segundo registro A: así solo existe una
-# IP que mantener. Cloudflare aplana el CNAME en el apex automáticamente.
-resource "cloudflare_dns_record" "www" {
-  zone_id = var.zone_id
-  name    = "www.${var.domain}"
-  type    = "CNAME"
-  content = var.domain
-  proxied = true
-  ttl     = 1
-  comment = "Alias de cortesia. Redirige al apex por Redirect Rule."
-}
 
 # --- Correo (IONOS) ----------------------------------------------------------
 #
@@ -141,11 +93,4 @@ resource "cloudflare_dns_record" "domainconnect" {
   proxied = false
   ttl     = 1
   comment = "Domain Connect de IONOS. No proxear."
-}
-
-# --- Salidas de verificación -------------------------------------------------
-
-output "origin_ipv4" {
-  description = "IP a la que apunta el registro A, leída del stack de Hetzner."
-  value       = local.origin_ipv4
 }
