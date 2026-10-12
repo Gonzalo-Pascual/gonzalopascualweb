@@ -40,8 +40,18 @@ spec:
       enabled: false
 
     # Genera aplicaciones en masa a partir de plantillas. Hay una aplicación.
+    #
+    # OJO: este componente NO tiene interruptor 'enabled', a diferencia de dex
+    # y notifications. Durante semanas aquí ponía 'enabled: false', Helm lo
+    # ignoraba en silencio y el controlador seguía corriendo. Se descubrió al
+    # actualizar a la v3.5.4 (2026-10-12), viendo su pod en la lista.
+    # Lección: un valor que el chart no conoce no da error, simplemente no
+    # hace nada. Hay que comprobar el resultado, no la intención.
+    #
+    # Con cero réplicas el controlador no corre, pero sus CRDs se mantienen y
+    # el resto de ArgoCD sigue funcionando sin cambios.
     applicationSet:
-      enabled: false
+      replicas: 0
 
     configs:
       params:
