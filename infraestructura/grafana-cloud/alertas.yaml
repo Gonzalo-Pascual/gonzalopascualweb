@@ -1,0 +1,86 @@
+# ============================================================================
+#  Reglas de alerta de Grafana Cloud — COPIA VERSIONADA
+#
+#  Igual que la política de Tailscale: la que manda es la que está en la
+#  consola de Grafana (Alerting → Alert rules, carpeta "portfolio"). Este
+#  fichero es la fuente de verdad legible y revisable; cualquier cambio se
+#  hace primero aquí y después se refleja en la consola.
+#
+#  Formato de reglas de Prometheus, el estándar del sector: se entiende sin
+#  conocer Grafana y se podría cargar tal cual en cualquier Prometheus.
+#
+#  QUÉ NO ESTÁ AQUÍ: la comprobación de que la web responde desde Internet.
+#  Esa la hace Synthetic Monitoring de Grafana Cloud (una visita HTTPS a
+#  https://gonzalopascual.es cada 2 minutos desde varias ciudades), y es la
+#  única alerta que detectaría un fallo FUERA del clúster: Cloudflare, el DNS
+#  o el certificado. Las reglas de abajo miran desde dentro.
+#
+#  Las alertas llegan por correo (punto de contacto por defecto de Grafana).
+# ============================================================================
+groups:
+  - name: portfolio
+    rules:
+      # ----------------------------------------------------------------------
+      # La más importante. Si la VM se apaga, k3s se cae o Alloy muere, las
+      # métricas DEJAN DE LLEGAR: no hay ningún valor que supere un umbral,
+      # simplemente no hay nada. Por eso esta regla debe configurarse en
+      # Grafana con "Si no hay datos → Alertar". Es la razón de que el monitor
+      # viva fuera de lo monitorizado.
+      - alert: ClusterSinDatos
+        expr: sum(up{cluster="portfolio"}) < 2
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "El clúster del portfolio ha dejado de enviar métricas"
+          description: >-
+            Alloy no está leyendo el kubelet o cAdvisor, o ha dejado de llegar
+            todo. Comprobar en este orden: la web, Tailscale, la VM en la consola
+            de Hetzner, y el pod de Alloy.
+
+      # ----------------------------------------------------------------------
+      # El riesgo real de esta máquina: 3,8 GB, normalmente al ~76 %.
+      # Se usa el "working set" (memoria que no se puede liberar sin más), no
+      # la memoria usada total, que incluye la caché del sistema y siempre
+      # parece llena.
+      - alert: MemoriaNodoAlta
+        expr: |
+          100 * max(node_memory_working_set_bytes{cluster="portfolio"})
+              / max(machine_memory_bytes{cluster="portfolio"}) > 90
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Memoria del nodo por encima del 90 % durante 10 minutos"
+          description: "Revisar 'kubectl top pods -A' para ver qué componente ha crecido."
+
+      # ----------------------------------------------------------------------
+      # Sólo el disco raíz (/dev/sda1, 40 GB). cAdvisor informa también de
+      # /dev/shm, /run y /run/lock, que son sistemas de ficheros en memoria y
+      # no interesan aquí.
+      - alert: DiscoNodoLleno
+        expr: |
+          100 * container_fs_usage_bytes{cluster="portfolio", id="/", device="/dev/sda1"}
+              / container_fs_limit_bytes{cluster="portfolio", id="/", device="/dev/sda1"} > 85
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Disco raíz del nodo por encima del 85 %"
+          description: >-
+            Lo habitual: imágenes de contenedor antiguas. k3s las limpia solo al
+            pasar del 85 %, así que si esto salta y no baja, algo está
+            escribiendo en disco sin control.
+
+      # ----------------------------------------------------------------------
+      # Un contenedor muerto por superar su límite de memoria. Kubernetes lo
+      # reinicia solo y la web puede seguir funcionando, así que sin esta
+      # alerta pasaría desapercibido. Significa que un límite está mal
+      # dimensionado.
+      - alert: ContenedorMuertoPorMemoria
+        expr: sum by (namespace, pod, container) (increase(container_oom_events_total{cluster="portfolio"}[15m])) > 0
+        labels:
+          severity: warning
+        annotations:
+          summary: "Un contenedor ha muerto por falta de memoria (OOM)"
+          description: "Subir su límite de memoria o investigar si tiene una fuga."
