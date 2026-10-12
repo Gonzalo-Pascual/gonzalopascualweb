@@ -1,0 +1,11 @@
+# Cabeceras de seguridad para Cloudflare Pages.
+#
+# Son las mismas que servía nginx (ver nginx.conf, que queda como histórico de
+# la etapa en Kubernetes). HSTS no está aquí: la pone Cloudflare a nivel de
+# zona (infraestructura/terraform-cloudflare/zone-settings.tf).
+/*
+  X-Frame-Options: DENY
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: geolocation=(), microphone=(), camera=()
+  Content-Security-Policy: default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'; font-src 'self'; base-uri 'self'; frame-ancestors 'none'; form-action https://formspree.io
