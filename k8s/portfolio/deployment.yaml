@@ -49,7 +49,7 @@ spec:
           # están los dos; la etiqueta ':main' existe para que Renovate sepa qué
           # seguir y pueda proponer el digest nuevo tras cada construcción. Sin
           # ella fallaba con "Could not determine new digest".
-          image: ghcr.io/gonzalo-pascual/portfolio:main@sha256:521987756ab3e675a872c170877e0bcc3547d7b7faf1ad005c3f55a0da4e7c40
+          image: ghcr.io/gonzalo-pascual/portfolio:main@sha256:7bec71c4fc2e17c906df1c62d55282fd2b86d092940ccbc1ecbc0a535be80d78
           # Con un digest, "si no está, tráela" es seguro: el identificador
           # determina el contenido de forma unívoca, así que la copia en caché
           # nunca puede ser una imagen distinta.
