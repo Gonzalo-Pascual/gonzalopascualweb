@@ -45,21 +45,88 @@
           APT::Periodic::Update-Package-Lists "1";
           APT::Periodic::Unattended-Upgrade "1";
 
+    # Instalar un parche no es lo mismo que aplicarlo. Un kernel o una libc
+    # nuevos quedan en el disco, pero lo que sigue ejecutándose es la versión
+    # vieja y vulnerable hasta que la máquina se reinicia. Sin esto, la VM
+    # acumulaba parches "instalados" que nunca entraban en vigor.
+    #
+    # Fichero propio con número mayor que el 50 de Ubuntu: se lee después y
+    # prevalece, sin tocar el original del paquete (que una actualización de
+    # unattended-upgrades podría sobrescribir).
+    - name: Reiniciar automáticamente cuando un parche lo requiera
+      ansible.builtin.copy:
+        dest: /etc/apt/apt.conf.d/52unattended-upgrades-reinicio
+        owner: root
+        group: root
+        mode: "0644"
+        content: |
+          // Sólo reinicia si algún paquete lo ha pedido (/var/run/reboot-required).
+          Unattended-Upgrade::Automatic-Reboot "true";
+          // Aunque haya sesiones abiertas. Un túnel SSH olvidado abierto
+          // bloquearía el reinicio para siempre, y en silencio.
+          Unattended-Upgrade::Automatic-Reboot-WithUsers "true";
+          // 04:00 UTC = 05:00/06:00 en España. Es un solo nodo: el reinicio
+          // supone uno o dos minutos sin web, y esa es la hora de menos visitas.
+          // k3s arranca solo con la máquina y repone todos los pods.
+          Unattended-Upgrade::Automatic-Reboot-Time "04:00";
+
+    # fail2ban en Ubuntu 24.04 viene ROTO de serie para SSH, sin dar error.
+    #
+    # Su filtro busca en el journal las líneas de la unidad 'sshd.service',
+    # pero en Ubuntu la unidad se llama 'ssh.service'. Resultado: el jail
+    # aparece activo, 'fail2ban-client status sshd' responde con normalidad...
+    # y no ve ni un solo intento, porque está mirando un registro vacío.
+    # Descubierto el 2026-10-12: "Total failed: 0" tras 70 días en marcha.
+    #
+    # Es la misma lección que el 'enabled: false' de ArgoCD: una protección
+    # que parece activa pero no actúa es peor que no tenerla, porque nadie la
+    # echa en falta. Hay que comprobar que FUNCIONA, no que está encendida.
+    - name: Corregir el jail de SSH de fail2ban (unidad ssh.service)
+      ansible.builtin.copy:
+        dest: /etc/fail2ban/jail.d/sshd-ubuntu.local
+        owner: root
+        group: root
+        mode: "0644"
+        content: |
+          [sshd]
+          enabled = true
+          backend = systemd
+          journalmatch = _SYSTEMD_UNIT=ssh.service + _COMM=sshd
+      notify: Reiniciar fail2ban
+
     - name: Activar y arrancar fail2ban
       ansible.builtin.service:
         name: fail2ban
         enabled: true
         state: started
 
+    # La versión de k3s queda FIJADA, igual que las imágenes por digest y los
+    # charts por versión. Sin ella, el instalador trae la última publicada el
+    # día que se ejecute: reconstruir la VM dentro de un año daría un clúster
+    # distinto del que se probó, y precisamente cuando se está recuperando de
+    # un desastre, que es el peor momento para descubrir incompatibilidades.
+    #
+    # 'creates' hace que la tarea no se repita si k3s ya está instalado: este
+    # playbook INSTALA, no actualiza. Subir de versión es un cambio deliberado
+    # que se hace aparte, no un efecto secundario de volver a lanzar Ansible.
+    #
+    # Sobre 'curl | sh': el script de get.k3s.io descarga el binario desde las
+    # releases de GitHub y verifica su suma SHA-256 antes de instalarlo.
     - name: Instalar k3s (Kubernetes ligero, servidor de un nodo)
       ansible.builtin.shell: curl -sfL https://get.k3s.io | sh -
       args:
         creates: /usr/local/bin/k3s
       environment:
+        INSTALL_K3S_VERSION: "v1.36.2+k3s1"
         INSTALL_K3S_EXEC: "--write-kubeconfig-mode 644"
 
   handlers:
     - name: Reiniciar SSH
       ansible.builtin.service:
         name: ssh
+        state: restarted
+
+    - name: Reiniciar fail2ban
+      ansible.builtin.service:
+        name: fail2ban
         state: restarted
