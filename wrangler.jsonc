@@ -1,0 +1,26 @@
+// ============================================================================
+//  Despliegue de la web en Cloudflare Workers (sólo ficheros estáticos).
+//
+//  Sustituye a toda la etapa anterior (Hetzner + k3s + ArgoCD), que queda en
+//  el repositorio como código de referencia. Una web estática no necesita un
+//  servidor: Cloudflare sirve los ficheros desde su red, gratis y sin límite
+//  de peticiones para contenido estático.
+//
+//  Se despliega solo con cada push a main (Workers Builds, conectado a este
+//  repositorio desde el panel de Cloudflare).
+// ============================================================================
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+
+  // Debe coincidir con el nombre del Worker creado en el panel.
+  "name": "gonzalopascual",
+  "compatibility_date": "2026-10-01",
+
+  // Sin "main": no hay código que ejecutar, sólo ficheros que servir.
+  "assets": {
+    "directory": "./apps/porfolio",
+    // Una URL que no existe devuelve 404.html con estado 404, igual que hacía
+    // nginx con 'error_page 404'.
+    "not_found_handling": "404-page"
+  }
+}

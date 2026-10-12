@@ -1,0 +1,7 @@
+# Ficheros de la carpeta que NO se publican en la web.
+#
+# Son de la etapa en Kubernetes (construir la imagen de nginx). Se conservan en
+# el repositorio como referencia, pero no tienen sentido como páginas públicas.
+Dockerfile
+nginx.conf
+.dockerignore
