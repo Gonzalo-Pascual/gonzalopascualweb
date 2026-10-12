@@ -199,9 +199,25 @@ jobs:
           provenance: mode=max
 
       # --- Firma criptográfica ----------------------------------------------
+      #
+      # La VERSIÓN de cosign se fija aparte de la versión de la acción, y no es
+      # redundante: la acción sólo es el instalador, y cada versión mayor del
+      # instalador trae por defecto una versión distinta de cosign.
+      #
+      # Fijada en la rama 2 a propósito (2026-10-12). cosign 3 cambia DÓNDE y
+      # CÓMO guarda la firma (artefacto OCI 1.1 "referrer" y formato de bundle
+      # nuevo). Kyverno verifica en modo Deny con el formato actual: si cambiara
+      # sin haber comprobado que Kyverno lo entiende, la siguiente imagen se
+      # rechazaría y los despliegues quedarían congelados. Además, en los PRs
+      # este paso no se ejecuta, así que un PR en verde NO demostraría nada.
+      #
+      # Migrar a cosign 3 será un cambio propio: probar primero la verificación
+      # con Kyverno en Audit, y sólo entonces subir esta versión.
       - name: Instalar cosign
         if: github.event_name != 'pull_request'
         uses: sigstore/cosign-installer@398d4b0eeef1380460a10c8013a76f728fb906ac # v3
+        with:
+          cosign-release: 'v2.6.5'
 
       # Firma SIN clave privada. GitHub emite un testimonio OIDC que acredita
       # "esto lo lanzó este repositorio, en este commit, desde este flujo".
