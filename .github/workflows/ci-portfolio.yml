@@ -16,16 +16,13 @@
 # ============================================================================
 name: CI · Portfolio
 
+# PROYECTO ARCHIVADO (2026-10-12): la web ya no se sirve desde esta imagen,
+# sino desde Cloudflare Workers como ficheros estáticos (ver wrangler.jsonc).
+# Construir, firmar y publicar una imagen que nadie despliega sería trabajo
+# inútil en cada cambio de la web, así que el flujo ya no se dispara solo.
+# Se conserva entero y ejecutable a mano (Actions → Run workflow) como
+# demostración de la cadena de suministro.
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'apps/porfolio/**'
-      - '.github/workflows/ci-portfolio.yml'
-  pull_request:
-    paths:
-      - 'apps/porfolio/**'
-      - '.github/workflows/ci-portfolio.yml'
   workflow_dispatch:
 
 # Mínimo privilegio a nivel de flujo: por defecto, solo lectura del código.

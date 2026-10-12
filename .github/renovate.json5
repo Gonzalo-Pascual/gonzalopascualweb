@@ -21,6 +21,15 @@
 {
   $schema: "https://docs.renovatebot.com/renovate-schema.json",
 
+  // PROYECTO ARCHIVADO (2026-10-12). La infraestructura (Hetzner, k3s, ArgoCD,
+  // Kyverno, Alloy) se destruyó y la web pasó a Cloudflare Workers como
+  // ficheros estáticos. Renovate seguiría proponiendo actualizaciones de
+  // charts, digests y providers de algo que ya no existe. Se desactiva aquí, en
+  // el repositorio, para que la decisión quede escrita y sea reversible: basta
+  // con borrar esta línea. El resto de la configuración se conserva intacta
+  // como referencia.
+  enabled: false,
+
   extends: [
     // Conjunto de ajustes razonables mantenido por el propio equipo de Renovate.
     "config:recommended",
