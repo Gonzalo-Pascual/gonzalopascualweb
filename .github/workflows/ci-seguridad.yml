@@ -93,7 +93,7 @@ jobs:
       # bloquea. Queda histórico y se revisa con calma.
       - name: Analizar configuraciones (informe)
         if: always()
-        uses: aquasecurity/trivy-action@d2a0b60797ff03db6132bd4e2b293f9b37081297 # master
+        uses: aquasecurity/trivy-action@c03d123cb480c08c69b054af418ea5e69fe6e57e # master
         with:
           scan-type: config
           scan-ref: .
@@ -105,7 +105,7 @@ jobs:
 
       - name: Publicar hallazgos de configuración
         if: always()
-        uses: github/codeql-action/upload-sarif@cdf488f595d80d6e07e03d4674febd5ab45fa938 # v4.37.9
+        uses: github/codeql-action/upload-sarif@24c54180a607b1449ed407dd24f251e4e9147c8d # v4.38.3
         with:
           sarif_file: trivy-config.sarif
           category: trivy-config
@@ -123,7 +123,7 @@ jobs:
       # Para endurecerlo más adelante basta con añadir MEDIUM a esta lista.
       - name: Configuraciones inseguras (BLOQUEANTE)
         if: always()
-        uses: aquasecurity/trivy-action@d2a0b60797ff03db6132bd4e2b293f9b37081297 # master
+        uses: aquasecurity/trivy-action@c03d123cb480c08c69b054af418ea5e69fe6e57e # master
         with:
           scan-type: config
           scan-ref: .
